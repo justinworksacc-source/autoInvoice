@@ -22,9 +22,9 @@ const invoiceHistoryStorageKey = "ai-accountant-ceo-invoice-history";
 const businessDateStorageKey = "ai-accountant-ceo-business-date";
 const themeStorageKey = "ai-accountant-ceo-theme";
 const autoSendEnabledStorageKey = "ai-accountant-ceo-auto-send-enabled";
-const monthlyInvoicesEndpoint = "/api/routes/monthly-invoices.php";
-const businessDateEndpoint = "/api/routes/business-date.php";
-const authEndpoint = "/api/routes/auth.php";
+const monthlyInvoicesEndpoint = "/api/monthly-invoices";
+const businessDateEndpoint = "/api/business-date";
+const authEndpoint = "/api/auth";
 function formatDateInput(date = /* @__PURE__ */ new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Manila",

@@ -8,7 +8,7 @@ import {
   parseAmount
 } from "../shared";
 import { secureFetch } from "../apiSecurity";
-const invoiceSendEndpoint = "/api/routes/send-invoice.php";
+const invoiceSendEndpoint = "/api/send-invoice";
 const autoSendAttemptStorageKey = "ai-accountant-ceo-auto-send-attempts";
 export const AUTO_SEND_LEAD_DAYS = 7;
 export function loadAutoSendAttemptKeys() {
@@ -68,7 +68,7 @@ ${profile.companyName}`
   });
   const contentType = response.headers.get("Content-Type") || "";
   if (!contentType.includes("application/json")) {
-    throw new Error("Send endpoint did not return JSON. Make sure the PHP API is running.");
+    throw new Error("Send endpoint did not return JSON. Check the Vercel API deployment.");
   }
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.success) {

@@ -5,7 +5,7 @@ This implementation provides a secure blueprint for a two-agent business assista
 
 ## 2. System architecture
 - Frontend: React + JavaScript + Vite
-- API layer: PHP routes for orchestrator, approvals, and future integrations
+- API layer: Vercel JavaScript functions for authentication, billing, invoice delivery, and Xendit
 - Data layer: MariaDB with schema for companies, departments, users, agents, business objectives, agent work items, approvals, audit logs, conversations, messages, and tasks
 - Integrations: accounting system, bank feeds, Gmail, calendar, CRM, and existing business APIs
 - Security: RBAC, department-level permissions, company-level isolation, logged approvals, and emergency stop
@@ -32,13 +32,11 @@ This implementation provides a secure blueprint for a two-agent business assista
 6. Supervised execution for approved recurring routines
 
 ## 6. API routes
-- POST /api/routes/orchestrator.php
-- POST /api/routes/approvals.php
-- POST /api/routes/monthly-invoices.php
-- GET /api/routes/dashboard.php
-- GET /api/routes/accountant.php
-- GET/PUT /api/routes/profile.php
-- GET/PUT /api/routes/settings.php
+- GET/POST/PUT/DELETE /api/auth
+- GET/POST /api/monthly-invoices
+- GET/POST /api/business-date
+- POST /api/send-invoice
+- POST /api/xendit
 
 ## 7. Database tables
 - companies
@@ -57,7 +55,7 @@ This implementation provides a secure blueprint for a two-agent business assista
 - messages
 - tasks
 
-Controller data access uses parameterized PHP queries. Database setup and migration scripts live in `database/sql`, outside the public build.
+Serverless data access uses parameterized JavaScript MySQL queries. Database setup and migration scripts live in `database/sql`, outside the public build.
 
 ## 8. Sample prompts
 - Check the business today and tell me what needs attention.

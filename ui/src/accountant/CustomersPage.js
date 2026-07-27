@@ -153,7 +153,7 @@ function CustomersPage({
     setXenditClientId(client.id);
     setSendError("");
     try {
-      const response = await secureFetch("/api/routes/xendit.php", {
+      const response = await secureFetch("/api/xendit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ client_id: client.id, amount })
