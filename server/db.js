@@ -8,6 +8,8 @@ export function database() {
     if (!host || host === "127.0.0.1" || host === "localhost") {
       throw Object.assign(new Error("Set DB_HOST to a public managed MySQL host in Vercel."), { status: 503 });
     }
+    const sslEnabled = process.env.DB_SSL !== "false";
+    const ca = String(process.env.DB_SSL_CA || "").replace(/\\n/g, "\n").trim();
     pool = mysql.createPool({
       host,
       port: Number(process.env.DB_PORT || 3306),
@@ -17,7 +19,10 @@ export function database() {
       waitForConnections: true,
       connectionLimit: 3,
       enableKeepAlive: true,
-      ssl: process.env.DB_SSL === "false" ? undefined : { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false" }
+      ssl: sslEnabled ? {
+        ...(ca ? { ca } : {}),
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false"
+      } : undefined
     });
   }
   return pool;
