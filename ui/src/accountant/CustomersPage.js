@@ -107,20 +107,19 @@ function CustomersPage({
   const clientPageStart = (safeClientPage - 1) * clientPageSize;
   const paginatedClients = filteredClients.slice(clientPageStart, clientPageStart + clientPageSize);
   const editRegions = uniqueAddressValues(customerPostalPlaces.map((place) => place.region));
-  const editProvincePlaces = customerPostalPlaces.filter((place) => place.region === editAddressRegion);
-  const editProvinces = uniqueAddressValues(editProvincePlaces.map((place) => place.municipality));
-  const editCityPlaces = editProvincePlaces.filter((place) => place.municipality === editAddressProvince);
-  const editCities = uniqueAddressValues(editCityPlaces.map((place) => place.location));
-  const editPostalCodes = uniqueAddressValues(editCityPlaces.filter((place) => !editAddressCity || place.location === editAddressCity).map((place) => place.post_code));
+  const editRegionPlaces = customerPostalPlaces.filter((place) => place.region === editAddressRegion);
+  const editCities = uniqueAddressValues(editRegionPlaces.map((place) => place.location));
+  const editBarangayPlaces = editRegionPlaces.filter((place) => place.location === editAddressCity);
+  const editBarangays = uniqueAddressValues(editBarangayPlaces.map((place) => place.municipality));
+  const editPostalCodes = uniqueAddressValues(editBarangayPlaces.filter((place) => !editAddressBarangay || place.municipality === editAddressBarangay).map((place) => place.post_code));
   function updateEditAddress(next) {
     const house = String(next.house ?? editAddressHouse);
     const street = String(next.street ?? editAddressStreet);
     const subdivision = String(next.subdivision ?? editAddressSubdivision);
     const barangay = String(next.barangay ?? editAddressBarangay);
-    const province = String(next.municipality ?? editAddressProvince);
     const city = String(next.location ?? editAddressCity);
     const postalCode = String(next.post_code ?? editAddressPostalCode);
-    setEditAddress([house, street, subdivision, barangay, city, province, postalCode, "Philippines"].filter(Boolean).join(", "));
+    setEditAddress([house, street, subdivision, barangay, city, postalCode, "Philippines"].filter(Boolean).join(", "));
   }
   function searchClients(event) {
     event.preventDefault();
@@ -782,58 +781,53 @@ function CustomersPage({
             } })
           ] }),
           /* @__PURE__ */ jsxs("label", { children: [
-            "Barangay",
-            /* @__PURE__ */ jsx("input", { value: editAddressBarangay, placeholder: "e.g. Cantil-e", onChange: (event) => {
-              setEditAddressBarangay(event.target.value);
-              updateEditAddress({ barangay: event.target.value });
-            } })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-          /* @__PURE__ */ jsxs("label", { children: [
             "Region",
             /* @__PURE__ */ jsxs("select", { value: editAddressRegion, onChange: (event) => {
               const region = event.target.value;
               setEditAddressRegion(region);
               setEditAddressProvince("");
               setEditAddressCity("");
+              setEditAddressBarangay("");
               setEditAddressPostalCode("");
-              updateEditAddress({ region, municipality: "", location: "", post_code: "" });
+              updateEditAddress({ region, barangay: "", municipality: "", location: "", post_code: "" });
             }, children: [
               /* @__PURE__ */ jsx("option", { value: "", children: "Choose region" }),
               editRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region, children: region }, region))
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxs("label", { children: [
-            "Province",
-            /* @__PURE__ */ jsxs("select", { value: editAddressProvince, disabled: !editAddressRegion, onChange: (event) => {
-              const province = event.target.value;
-              setEditAddressProvince(province);
-              setEditAddressCity("");
-              setEditAddressPostalCode("");
-              updateEditAddress({ municipality: province, location: "", post_code: "" });
-            }, children: [
-              /* @__PURE__ */ jsx("option", { value: "", children: "Choose province" }),
-              editProvinces.map((province) => /* @__PURE__ */ jsx("option", { value: province, children: province }, province))
             ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "City / Municipality",
-            /* @__PURE__ */ jsxs("select", { value: editAddressCity, disabled: !editAddressProvince, onChange: (event) => {
+            /* @__PURE__ */ jsxs("select", { value: editAddressCity, disabled: !editAddressRegion, onChange: (event) => {
               const city = event.target.value;
               setEditAddressCity(city);
+              setEditAddressBarangay("");
               setEditAddressPostalCode("");
-              updateEditAddress({ location: city, post_code: "" });
+              updateEditAddress({ barangay: "", location: city, post_code: "" });
             }, children: [
               /* @__PURE__ */ jsx("option", { value: "", children: "Choose city / municipality" }),
               editCities.map((city) => /* @__PURE__ */ jsx("option", { value: city, children: city }, city))
             ] })
+          ] })
+        ,
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Barangay / District",
+            /* @__PURE__ */ jsxs("select", { value: editAddressBarangay, disabled: !editAddressCity, onChange: (event) => {
+              const barangay = event.target.value;
+              setEditAddressBarangay(barangay);
+              setEditAddressPostalCode("");
+              updateEditAddress({ barangay, post_code: "" });
+            }, children: [
+              /* @__PURE__ */ jsx("option", { value: "", children: "Choose barangay / district" }),
+              editBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay, children: barangay }, barangay))
+            ] })
           ] }),
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Postal code",
-            /* @__PURE__ */ jsxs("select", { value: editAddressPostalCode, disabled: !editAddressProvince, onChange: (event) => {
+            /* @__PURE__ */ jsxs("select", { value: editAddressPostalCode, disabled: !editAddressCity, onChange: (event) => {
               const postCode = event.target.value;
               setEditAddressPostalCode(postCode);
               updateEditAddress({ post_code: postCode });
@@ -841,11 +835,11 @@ function CustomersPage({
               /* @__PURE__ */ jsx("option", { value: "", children: "Choose postal code" }),
               editPostalCodes.map((postCode) => /* @__PURE__ */ jsx("option", { value: postCode, children: postCode }, postCode))
             ] })
+          ] }),
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Country",
+            /* @__PURE__ */ jsx("input", { value: "Philippines", readOnly: true })
           ] })
-        ] }),
-        /* @__PURE__ */ jsxs("label", { children: [
-          "Country",
-          /* @__PURE__ */ jsx("input", { value: "Philippines", readOnly: true })
         ] }),
         /* @__PURE__ */ jsxs("p", { children: [
           /* @__PURE__ */ jsx("strong", { children: "Complete address:" }),
