@@ -15,20 +15,21 @@ export default async function handler(req, res) {
         [username, ip]
       );
       if (Number(attempts.count) >= 5) throw Object.assign(new Error("Too many login attempts. Try again in 15 minutes."), { status: 429 });
-      const [rows] = await db.execute("SELECT id, username, password_hash FROM auth_accounts WHERE username = ? AND is_active = 1 LIMIT 1", [username]);
+      const [rows] = await db.execute("SELECT id, username, password_hash, role FROM auth_accounts WHERE username = ? AND is_active = 1 LIMIT 1", [username]);
       const account = rows[0];
       if (!account || !(await bcrypt.compare(password, account.password_hash))) {
         await db.execute("INSERT INTO auth_login_attempts (username, ip_address) VALUES (?, ?)", [username, ip]);
         throw Object.assign(new Error("Incorrect username or password."), { status: 401 });
       }
       await db.execute("DELETE FROM auth_login_attempts WHERE username = ? AND ip_address = ?", [username, ip]);
+      await db.execute("UPDATE auth_accounts SET last_login_at=NOW() WHERE id=?", [account.id]);
       const session = createSession(res, account);
-      return json(res, 200, { success: true, user: { username: account.username }, csrf_token: session.csrf });
+      return json(res, 200, { success: true, user: { username: account.username, role: session.role }, csrf_token: session.csrf });
     }
     if (req.method === "GET") {
       const session = readSession(req);
       if (!session) return json(res, 401, { success: false, error: "Authentication required." });
-      return json(res, 200, { success: true, user: { username: session.username }, csrf_token: session.csrf });
+      return json(res, 200, { success: true, user: { username: session.username, role: session.role }, csrf_token: session.csrf });
     }
     if (req.method === "PUT") {
       const session = requireSession(req);

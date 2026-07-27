@@ -28,12 +28,20 @@ export function createSession(res, user) {
   const session = {
     userId: Number(user.id),
     username: user.username,
+    role: user.role || "admin",
     csrf: crypto.randomBytes(32).toString("hex"),
     expires: Date.now() + 12 * 60 * 60 * 1000
   };
   const payload = encode(JSON.stringify(session));
   const token = `${payload}.${sign(payload)}`;
   res.setHeader("Set-Cookie", `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`);
+  return session;
+}
+
+export function requireRole(session, roles) {
+  if (!roles.includes(session.role || "admin")) {
+    throw Object.assign(new Error("You do not have permission to perform this action."), { status: 403 });
+  }
   return session;
 }
 

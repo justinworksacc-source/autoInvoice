@@ -9,6 +9,10 @@ This workspace contains a secure starter implementation for a two-agent business
 - Vercel JavaScript API functions for authentication, customers, invoices, business dates, and Xendit
 - MariaDB schema for objectives, work items, governance, audit, and agent configuration
 - Architecture and implementation notes
+- Role-based user administration for admins, accountants, and staff
+- Invoice lifecycle, receivables aging, reminders, receipts, refunds, and audit history
+- Secure customer portal links with Xendit hosted checkout
+- CSV exports for customer and payment reports
 
 ## Quick start
 1. Install dependencies: npm install
@@ -38,6 +42,24 @@ Add `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_SSL_CA`, `SESSION
 - Set `XENDIT_SECRET_KEY`, `XENDIT_WEBHOOK_TOKEN`, and `APP_PUBLIC_URL` in `.env`.
 - Import `database/sql/schema.sql`, then register `https://YOUR_HOST/api/xendit?webhook=1` as the Payment Session webhook in the Xendit Dashboard.
 - Successful Xendit webhooks are recorded once in the customer payment ledger. Never place the Xendit secret key in browser JavaScript.
+- The webhook event ledger prevents duplicate payments and tracks ignored, failed, and expired sessions.
+
+## Billing platform upgrade
+
+After importing the base schema, import `database/migrations/20260727_billing_platform.sql`. It adds:
+
+- customer numbers, phone details, safe archiving, and portal access tokens
+- user roles and last-login tracking
+- invoice viewed/cancelled states
+- receipt numbers and refund records
+- a retryable notification queue
+- webhook idempotency and application error tables
+
+The **Operations & Reports** page provides receivables aging, invoice status management, reminders, customer portal links, CSV exports, and audit history. The **Users & Roles** page is restricted to administrators.
+
+Vercel runs `/api/notifications` every 15 minutes. Set `CRON_SECRET`, `SEND_INVOICE_WEBHOOK_URL`, and `SEND_INVOICE_SECRET` so queued email notifications can be delivered. SMS entries remain queued unless your delivery webhook supports the `sms` channel.
+
+Customer portal links are bearer credentials. Share them only with the intended customer and generate a new link if one is exposed.
 
 ## Gmail invoice sending
 - The Customers page `Send now` button calls `POST /api/send-invoice`.

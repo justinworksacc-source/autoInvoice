@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { database } from "../server/db.js";
-import { body, fail, json, requireSession } from "../server/security.js";
+import { body, fail, json, readSession, requireSession } from "../server/security.js";
 
 function cleanAmount(value) {
   return Math.round((Number(String(value || "0").replace(/[^0-9.-]/g, "")) || 0) * 100) / 100;
@@ -11,7 +11,29 @@ async function webhook(req, res) {
   const received = String(req.headers["x-callback-token"] || "");
   if (!expected || !received || expected !== received) return json(res, 401, { success: false, error: "Invalid webhook token." });
   const input = await body(req);
-  if (input.event !== "payment_session.completed") return json(res, 200, { success: true, ignored: true });
+  const eventKey = String(req.headers["webhook-id"] || input.id || input.data?.payment_id || input.data?.reference_id || "");
+  if (eventKey) {
+    try {
+      await database().execute(
+        `INSERT INTO webhook_events (provider,event_key,event_type,status,payload)
+         VALUES ('xendit',?,?, 'processing',?)`,
+        [eventKey, String(input.event || "unknown"), JSON.stringify(input)]
+      );
+    } catch (error) {
+      if (error.code === "ER_DUP_ENTRY") return json(res, 200, { success: true, duplicate: true });
+      throw error;
+    }
+  }
+  if (input.event !== "payment_session.completed") {
+    if (input.data?.reference_id && /expired|failed|cancelled/i.test(String(input.event))) {
+      await database().execute(
+        "UPDATE xendit_payment_sessions SET status=? WHERE reference_id=? AND status<>'paid'",
+        [String(input.event).split(".").pop().toLowerCase(), input.data.reference_id]
+      );
+    }
+    if (eventKey) await database().execute("UPDATE webhook_events SET status='ignored',processed_at=NOW() WHERE provider='xendit' AND event_key=?", [eventKey]);
+    return json(res, 200, { success: true, ignored: true });
+  }
   const data = input.data || {};
   const connection = await database().getConnection();
   try {
@@ -22,17 +44,19 @@ async function webhook(req, res) {
       await connection.commit();
       return json(res, 200, { success: true, duplicate: true });
     }
+    const receiptNumber = `OR-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     await connection.execute(
       `INSERT INTO monthly_invoice_payments
-       (company_id,client_id,billing_email,amount,payment_date,method,reference_number,notes)
-       VALUES (1,?,?,?,CURDATE(),'Xendit',?,'Confirmed automatically by Xendit webhook')`,
-      [session.client_id, session.billing_email, session.amount, data.payment_id || data.reference_id]
+       (company_id,client_id,billing_email,amount,payment_date,method,reference_number,notes,receipt_number)
+       VALUES (1,?,?,?,CURDATE(),'Xendit',?,'Confirmed automatically by Xendit webhook',?)`,
+      [session.client_id, session.billing_email, session.amount, data.payment_id || data.reference_id, receiptNumber]
     );
     await connection.execute(
       "UPDATE xendit_payment_sessions SET status='paid',payment_id=?,webhook_id=?,paid_at=NOW() WHERE id=?",
       [data.payment_id || null, String(req.headers["webhook-id"] || "") || null, session.id]
     );
     await connection.commit();
+    if (eventKey) await database().execute("UPDATE webhook_events SET status='processed',processed_at=NOW() WHERE provider='xendit' AND event_key=?", [eventKey]);
     return json(res, 200, { success: true });
   } catch (error) {
     await connection.rollback();
@@ -48,18 +72,24 @@ export default async function handler(req, res) {
       if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
       return await webhook(req, res);
     }
-    requireSession(req);
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const input = await body(req);
+    const authenticated = readSession(req);
+    const portalToken = String(input.portal_token || "");
+    if (!authenticated && !portalToken) requireSession(req);
+    const portalHash = portalToken ? crypto.createHash("sha256").update(portalToken).digest("hex") : "";
     const email = String(input.client_id || "").trim().toLowerCase();
-    const amount = cleanAmount(input.amount);
+    let amount = cleanAmount(input.amount);
     if (!email || amount <= 0) throw Object.assign(new Error("A customer and positive amount are required."), { status: 422 });
     const [clients] = await database().execute(
-      "SELECT id,customer_name,billing_email,invoice_number FROM monthly_invoice_clients WHERE company_id=1 AND LOWER(billing_email)=? LIMIT 1",
-      [email]
+      `SELECT id,customer_name,billing_email,invoice_number,monthly_amount
+       FROM monthly_invoice_clients WHERE company_id=1 AND LOWER(billing_email)=?
+       AND archived_at IS NULL AND (?='' OR portal_token_hash=?) LIMIT 1`,
+      [email, portalHash, portalHash]
     );
     const client = clients[0];
     if (!client) throw Object.assign(new Error("Customer was not found."), { status: 404 });
+    if (!authenticated) amount = Math.min(amount, cleanAmount(client.monthly_amount));
     const secret = process.env.XENDIT_SECRET_KEY;
     if (!secret) throw Object.assign(new Error("Set XENDIT_SECRET_KEY in Vercel."), { status: 503 });
     const referenceId = `VSS-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
