@@ -23,7 +23,7 @@ This workspace contains a secure starter implementation for a two-agent business
 
 ## Vercel production environment
 
-Add `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_SSL_CA`, `SESSION_SECRET`, and `APP_PUBLIC_URL` in Vercel Project Settings. Use a managed MySQL-compatible database reachable over the internet; `127.0.0.1` only works locally. For Aiven, copy the complete CA certificate into `DB_SSL_CA`. Import `database/sql/schema.sql` into that database. Add the Xendit and invoice sender variables from `.env.example` only when those integrations are enabled.
+Add `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DB_SSL_CA`, `SESSION_SECRET`, and `APP_PUBLIC_URL` in Vercel Project Settings. Use a managed MySQL-compatible database reachable over the internet; `127.0.0.1` only works locally. For Aiven, copy the complete CA certificate into `DB_SSL_CA`. Import `database/sql/schema.sql` while connected to Aiven's `defaultdb`; the script uses the currently selected database. Add the Xendit and invoice sender variables from `.env.example` only when those integrations are enabled.
 
 ## MariaDB customer data
 - The Customers page reads and writes customers and payments through `GET/POST /api/monthly-invoices`.
