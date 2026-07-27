@@ -81,9 +81,9 @@ function loadBusinessDate() {
 }
 function loadTheme() {
   try {
-    return window.localStorage.getItem(themeStorageKey) === "light" ? "light" : "dark";
+    return window.localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 function loadAutoSendEnabled() {
