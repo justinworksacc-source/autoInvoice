@@ -1,0 +1,50 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="vss-title vss-description">
+  <title id="vss-title">Visual Security Systems logo</title>
+  <desc id="vss-description">A navy globe surrounding a white star with a horizontal security bar.</desc>
+
+  <defs>
+    <clipPath id="globe-clip">
+      <circle cx="256" cy="256" r="226" />
+    </clipPath>
+  </defs>
+
+  <!-- White globe field and outer keyline. -->
+  <circle cx="256" cy="256" r="226" fill="#ffffff" stroke="#050505" stroke-width="4" />
+
+  <!-- Segmented outer globe band. -->
+  <g fill="none" stroke-linecap="butt">
+    <path d="M39 193 A226 226 0 0 1 180 42" stroke="#050505" stroke-width="55" />
+    <path d="M39 193 A226 226 0 0 1 180 42" stroke="#092552" stroke-width="49" />
+    <path d="M379 62 A226 226 0 0 1 474 211" stroke="#050505" stroke-width="55" />
+    <path d="M379 62 A226 226 0 0 1 474 211" stroke="#092552" stroke-width="49" />
+    <path d="M474 301 A226 226 0 0 1 39 316" stroke="#050505" stroke-width="55" />
+    <path d="M474 301 A226 226 0 0 1 39 316" stroke="#092552" stroke-width="49" />
+  </g>
+
+  <!-- Simplified land masses clipped inside the globe. -->
+  <g clip-path="url(#globe-clip)" fill="#092552" stroke="#050505" stroke-linejoin="round" stroke-width="3">
+    <path d="M52 159 79 111 103 84 122 66 134 70 143 83 158 83 169 76 186 78 194 89 211 92 219 103 210 113 197 110 190 122 179 130 184 144 174 153 181 163 171 173 156 169 143 178 128 173 115 178 99 169 88 171 76 161 64 163Z" />
+    <path d="M151 111 165 107 174 116 169 128 176 139 169 148 157 144 159 132 150 126Z" />
+    <path d="M171 148 189 143 204 150 211 161 226 164 238 178 229 191 211 194 200 187 187 188 178 177 165 174 160 161Z" />
+    <path d="M426 107 448 119 466 152 478 181 474 205 462 197 454 180 445 170 442 150 432 137Z" />
+    <path d="M78 329 111 325 137 335 165 340 185 354 196 376 190 392 199 410 193 429 174 442 150 439 131 426 119 408 103 396 92 376Z" />
+    <path d="M177 348 196 339 218 344 228 360 222 377 207 383 201 399 186 391 182 374 169 365Z" />
+    <path d="M194 398 208 395 220 406 216 422 203 432 192 421Z" />
+    <path d="M216 449 229 444 239 451 233 462 220 462Z" />
+  </g>
+
+  <!-- Left security bar. -->
+  <path d="M29 228 H219 L220 291 H29 Z" fill="#092552" stroke="#050505" stroke-width="4" />
+
+  <!-- Inner circular field creates the open C-shaped globe. -->
+  <circle cx="300" cy="256" r="157" fill="#ffffff" stroke="#092552" stroke-width="6" />
+
+  <!-- Five-point security star. -->
+  <polygon
+    points="300,149 319,211 384,210 331,248 352,310 300,272 248,310 269,248 216,210 281,211"
+    fill="#ffffff"
+    stroke="#092552"
+    stroke-linejoin="miter"
+    stroke-width="7"
+  />
+</svg>

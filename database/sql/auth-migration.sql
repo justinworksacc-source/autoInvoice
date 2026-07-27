@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS auth_accounts (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  company_id BIGINT NULL,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+INSERT INTO auth_accounts (username, password_hash)
+VALUES ('admin.demo', '$2y$12$1.UdkTZ2Z6wBSZ.PCC8htunB.4fGrgt8pvYj.reAJThzi/Q.1I7B2')
+ON DUPLICATE KEY UPDATE username = VALUES(username);

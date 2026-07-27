@@ -1,0 +1,22 @@
+{
+  "name": "ai-accountant-ceo-workbench",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "production-local": "npm run build && php -S 127.0.0.1:8080 scripts/local-production-router.php"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.21.2",
+    "use-postal-ph": "^1.1.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.10"
+  }
+}
