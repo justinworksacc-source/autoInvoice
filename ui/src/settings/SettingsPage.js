@@ -1,7 +1,7 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { formatDateInput, formatDueDate, isDateInput, parseDateInput } from "../shared";
+import { formatDateInput, isDateInput } from "../shared";
 function manilaClock(date = /* @__PURE__ */ new Date()) {
   return new Intl.DateTimeFormat("en-PH", {
     timeZone: "Asia/Manila",
@@ -11,17 +11,30 @@ function manilaClock(date = /* @__PURE__ */ new Date()) {
     hour12: true
   }).format(date);
 }
+function manilaCalendarDate(date = /* @__PURE__ */ new Date()) {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
+}
 function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme, onThemeChange, autoSendEnabled, onAutoSendChange }) {
   const [draftBusinessDate, setDraftBusinessDate] = useState(businessDate);
   const [draftBusinessTime, setDraftBusinessTime] = useState(businessTime);
   const [liveManilaTime, setLiveManilaTime] = useState(() => manilaClock());
+  const [liveManilaDate, setLiveManilaDate] = useState(() => manilaCalendarDate());
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setDraftBusinessDate(businessDate);
     setDraftBusinessTime(businessTime);
   }, [businessDate, businessTime]);
   useEffect(() => {
-    const timer = window.setInterval(() => setLiveManilaTime(manilaClock()), 1000);
+    const timer = window.setInterval(() => {
+      const now = /* @__PURE__ */ new Date();
+      setLiveManilaTime(manilaClock(now));
+      setLiveManilaDate(manilaCalendarDate(now));
+    }, 1000);
     return () => window.clearInterval(timer);
   }, []);
   function saveDate(event) {
@@ -64,8 +77,8 @@ function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme,
           /* @__PURE__ */ jsx("span", { className: "automation-badge", children: "Automatic sync enabled" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "current-business-date", children: [
-          /* @__PURE__ */ jsx("span", { children: "Current business date" }),
-          /* @__PURE__ */ jsx("strong", { children: formatDueDate(parseDateInput(businessDate)) }),
+          /* @__PURE__ */ jsx("span", { children: "Live Manila date" }),
+          /* @__PURE__ */ jsx("strong", { children: liveManilaDate }),
           /* @__PURE__ */ jsx("span", { children: "Live Manila time" }),
           /* @__PURE__ */ jsx("strong", { children: liveManilaTime }),
           /* @__PURE__ */ jsx("small", { children: "The live clock updates every second." })
