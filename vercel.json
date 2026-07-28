@@ -6,6 +6,10 @@
   "outputDirectory": "dist",
   "crons": [
     {
+      "path": "/api/business-date",
+      "schedule": "0 16 * * *"
+    },
+    {
       "path": "/api/notifications",
       "schedule": "*/15 * * * *"
     }

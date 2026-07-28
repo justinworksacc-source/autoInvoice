@@ -53,7 +53,6 @@ function AccountantPage({ clients, payments, businessDate }) {
         /* @__PURE__ */ jsx(Link, { className: "primary-link-button", to: "/invoices", children: "Prepare invoices" })
       ] })
     ] }),
-    ,
     /* @__PURE__ */ jsxs("div", { className: "accountant-summary", "aria-label": "Accounting summary", children: [
       /* @__PURE__ */ jsxs("article", { children: [
         /* @__PURE__ */ jsx("span", { children: "Accounts receivable" }),
