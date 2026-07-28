@@ -23,6 +23,7 @@ const clientsStorageKey = "ai-accountant-ceo-clients";
 const paymentsStorageKey = "ai-accountant-ceo-payments";
 const invoiceHistoryStorageKey = "ai-accountant-ceo-invoice-history";
 const businessDateStorageKey = "ai-accountant-ceo-business-date";
+const businessTimeStorageKey = "ai-accountant-ceo-business-time";
 const themeStorageKey = "ai-accountant-ceo-theme";
 const autoSendEnabledStorageKey = "ai-accountant-ceo-auto-send-enabled";
 const monthlyInvoicesEndpoint = "/api/monthly-invoices";
@@ -82,6 +83,14 @@ function loadBusinessDate() {
     return formatDateInput();
   }
 }
+function loadBusinessTime() {
+  try {
+    const savedBusinessTime = window.localStorage.getItem(businessTimeStorageKey);
+    return /^\d{2}:\d{2}$/.test(savedBusinessTime || "") ? savedBusinessTime : "08:00";
+  } catch {
+    return "08:00";
+  }
+}
 function loadTheme() {
   try {
     return window.localStorage.getItem(themeStorageKey) === "dark" ? "dark" : "light";
@@ -106,7 +115,7 @@ async function requestBusinessDate(payload) {
   if (!response.ok || !result.success || !result.business_date) {
     throw new Error(result.error || "Business date request failed.");
   }
-  return result.business_date;
+  return { businessDate: result.business_date, businessTime: result.business_time || "08:00" };
 }
 const initialMonthlyInvoiceClients = [
   {
@@ -205,6 +214,7 @@ function App() {
   const [session, setSession] = useState(() => loadAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
   const [businessDate, setBusinessDate] = useState(() => loadBusinessDate());
+  const [businessTime, setBusinessTime] = useState(() => loadBusinessTime());
   const [theme, setTheme] = useState(() => loadTheme());
   const [autoSendEnabled, setAutoSendEnabled] = useState(() => loadAutoSendEnabled());
   const [databaseNotice, setDatabaseNotice] = useState("");
@@ -238,6 +248,9 @@ function App() {
     window.localStorage.setItem(businessDateStorageKey, businessDate);
   }, [businessDate]);
   useEffect(() => {
+    window.localStorage.setItem(businessTimeStorageKey, businessTime);
+  }, [businessTime]);
+  useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(themeStorageKey, theme);
   }, [theme]);
@@ -249,9 +262,10 @@ function App() {
       return;
     }
     let cancelled = false;
-    requestBusinessDate().then((databaseBusinessDate) => {
+    requestBusinessDate().then(({ businessDate: databaseBusinessDate, businessTime: databaseBusinessTime }) => {
       if (!cancelled && isDateInput(databaseBusinessDate)) {
         setBusinessDate(databaseBusinessDate);
+        setBusinessTime(databaseBusinessTime);
       }
     }).catch(() => {
     });
@@ -319,11 +333,20 @@ function App() {
       client_id: clientId
     });
   }
-  function saveBusinessDate(nextBusinessDate) {
+  function saveBusinessDate(nextBusinessDate, nextBusinessTime = businessTime) {
     const cleanBusinessDate = isDateInput(nextBusinessDate) ? nextBusinessDate : formatDateInput();
+    const cleanBusinessTime = /^\d{2}:\d{2}$/.test(nextBusinessTime) ? nextBusinessTime : "08:00";
     setBusinessDate(cleanBusinessDate);
-    void requestBusinessDate({ action: "set", business_date: cleanBusinessDate }).then(setBusinessDate).catch((error) => {
-      setDatabaseNotice(`Business date save failed: ${error instanceof Error ? error.message : "Unknown error."}`);
+    setBusinessTime(cleanBusinessTime);
+    void requestBusinessDate({
+      action: "set",
+      business_date: cleanBusinessDate,
+      business_time: cleanBusinessTime
+    }).then(({ businessDate: savedDate, businessTime: savedTime }) => {
+      setBusinessDate(savedDate);
+      setBusinessTime(savedTime);
+    }).catch((error) => {
+      setDatabaseNotice(`Business date and time save failed: ${error instanceof Error ? error.message : "Unknown error."}`);
     });
   }
   async function handleLogin(username, password) {
@@ -434,6 +457,7 @@ function App() {
               SettingsPage,
               {
                 businessDate,
+                businessTime,
                 onBusinessDateChange: saveBusinessDate,
                 theme,
                 onThemeChange: setTheme,

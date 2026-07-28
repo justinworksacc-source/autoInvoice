@@ -2,23 +2,32 @@ import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatDateInput, formatDueDate, isDateInput, parseDateInput } from "../shared";
-function SettingsPage({ businessDate, onBusinessDateChange, theme, onThemeChange, autoSendEnabled, onAutoSendChange }) {
+function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme, onThemeChange, autoSendEnabled, onAutoSendChange }) {
   const [draftBusinessDate, setDraftBusinessDate] = useState(businessDate);
+  const [draftBusinessTime, setDraftBusinessTime] = useState(businessTime);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setDraftBusinessDate(businessDate);
-  }, [businessDate]);
+    setDraftBusinessTime(businessTime);
+  }, [businessDate, businessTime]);
   function saveDate(event) {
     event.preventDefault();
     const nextDate = isDateInput(draftBusinessDate) ? draftBusinessDate : formatDateInput();
     setDraftBusinessDate(nextDate);
-    onBusinessDateChange(nextDate);
+    onBusinessDateChange(nextDate, draftBusinessTime);
     setSaved(true);
   }
   function useToday() {
     const today = formatDateInput();
+    const currentTime = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Manila",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(new Date());
     setDraftBusinessDate(today);
-    onBusinessDateChange(today);
+    setDraftBusinessTime(currentTime);
+    onBusinessDateChange(today, currentTime);
     setSaved(true);
   }
   return /* @__PURE__ */ jsxs("section", { className: "page-stack settings-page", children: [
@@ -35,14 +44,14 @@ function SettingsPage({ businessDate, onBusinessDateChange, theme, onThemeChange
         /* @__PURE__ */ jsxs("div", { className: "settings-card-heading", children: [
           /* @__PURE__ */ jsx("span", { className: "settings-icon", "aria-hidden": "true", children: "\u25A3" }),
           /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("h3", { children: "Business date" }),
-            /* @__PURE__ */ jsx("p", { children: "Control the date used for financial operations." })
+            /* @__PURE__ */ jsx("h3", { children: "Business date & time" }),
+            /* @__PURE__ */ jsx("p", { children: "Control the date and time used for financial operations." })
           ] }),
           /* @__PURE__ */ jsx("span", { className: "automation-badge", children: "Automatic sync enabled" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "current-business-date", children: [
-          /* @__PURE__ */ jsx("span", { children: "Current business date" }),
-          /* @__PURE__ */ jsx("strong", { children: formatDueDate(parseDateInput(businessDate)) }),
+          /* @__PURE__ */ jsx("span", { children: "Current business date & time" }),
+          /* @__PURE__ */ jsx("strong", { children: `${formatDueDate(parseDateInput(businessDate))} · ${businessTime}` }),
           /* @__PURE__ */ jsx("small", { children: "Saved in MariaDB and synchronized daily by cron." })
         ] }),
         /* @__PURE__ */ jsxs("form", { className: "settings-date-form", onSubmit: saveDate, children: [
@@ -60,11 +69,22 @@ function SettingsPage({ businessDate, onBusinessDateChange, theme, onThemeChange
               }
             )
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "settings-form-actions", children: [
-            /* @__PURE__ */ jsx("button", { type: "button", className: "secondary-button", onClick: useToday, children: "Use today" }),
-            /* @__PURE__ */ jsx("button", { type: "submit", children: "Save business date" })
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Set business time manually",
+            /* @__PURE__ */ jsx("input", {
+              type: "time",
+              value: draftBusinessTime,
+              onChange: (event) => {
+                setDraftBusinessTime(event.target.value);
+                setSaved(false);
+              }
+            })
           ] }),
-          saved ? /* @__PURE__ */ jsx("p", { className: "settings-saved-message", children: "Business date saved." }) : null
+          /* @__PURE__ */ jsxs("div", { className: "settings-form-actions", children: [
+            /* @__PURE__ */ jsx("button", { type: "button", className: "secondary-button", onClick: useToday, children: "Use current date & time" }),
+            /* @__PURE__ */ jsx("button", { type: "submit", children: "Save date & time" })
+          ] }),
+          saved ? /* @__PURE__ */ jsx("p", { className: "settings-saved-message", children: "Business date and time saved." }) : null
         ] })
       ] }),
       /* @__PURE__ */ jsxs("article", { className: "settings-card appearance-settings", children: [
