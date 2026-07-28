@@ -64,10 +64,11 @@ function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme,
           /* @__PURE__ */ jsx("span", { className: "automation-badge", children: "Automatic sync enabled" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "current-business-date", children: [
-          /* @__PURE__ */ jsx("span", { children: "Current business date & time" }),
-          /* @__PURE__ */ jsx("strong", { children: `${formatDueDate(parseDateInput(businessDate))} · ${businessTime}` }),
-          /* @__PURE__ */ jsx("small", { children: `Live Manila time: ${liveManilaTime}` }),
-          /* @__PURE__ */ jsx("small", { children: "Business date and time are saved in MariaDB; the live clock updates every second." })
+          /* @__PURE__ */ jsx("span", { children: "Current business date" }),
+          /* @__PURE__ */ jsx("strong", { children: formatDueDate(parseDateInput(businessDate)) }),
+          /* @__PURE__ */ jsx("span", { children: "Live Manila time" }),
+          /* @__PURE__ */ jsx("strong", { children: liveManilaTime }),
+          /* @__PURE__ */ jsx("small", { children: "The live clock updates every second." })
         ] }),
         /* @__PURE__ */ jsxs("form", { className: "settings-date-form", onSubmit: saveDate, children: [
           /* @__PURE__ */ jsxs("label", { children: [
