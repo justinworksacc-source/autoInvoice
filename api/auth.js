@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
-import { database } from "../server/db.js";
+import { database, ensureAuthSchema } from "../server/db.js";
 import { body, clearSession, createSession, fail, json, readSession, requireSession } from "../server/security.js";
 
 export default async function handler(req, res) {
   try {
     if (req.method === "POST") {
+      await ensureAuthSchema();
       const input = await body(req);
       const username = String(input.username || "").trim();
       const password = String(input.password || "");

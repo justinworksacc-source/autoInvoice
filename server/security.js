@@ -83,9 +83,22 @@ export function json(res, status, payload) {
 
 export function fail(res, error) {
   console.error(error);
+  const databaseMessages = {
+    ER_NO_SUCH_TABLE: "The database schema is incomplete. Redeploy to initialize the required tables.",
+    ER_BAD_FIELD_ERROR: "The database schema is outdated. Redeploy to apply the compatibility update.",
+    ER_ACCESS_DENIED_ERROR: "The database rejected the configured username or password.",
+    ER_DBACCESS_DENIED_ERROR: "The database user does not have access to the configured database.",
+    ER_TABLEACCESS_DENIED_ERROR: "The database user cannot initialize the required tables or columns.",
+    ECONNREFUSED: "The database refused the connection. Check DB_HOST and DB_PORT in Vercel.",
+    ETIMEDOUT: "The database connection timed out. Check the Aiven service and Vercel environment settings.",
+    ENOTFOUND: "The database host could not be found. Check DB_HOST in Vercel.",
+    CERT_HAS_EXPIRED: "The database TLS certificate has expired.",
+    UNABLE_TO_VERIFY_LEAF_SIGNATURE: "The database TLS certificate could not be verified. Check DB_SSL_CA in Vercel."
+  };
+  const safeDatabaseMessage = databaseMessages[error?.code];
   json(res, Number(error.status || 500), {
     success: false,
-    error: error.status ? error.message : "An internal server error occurred."
+    error: error.status ? error.message : safeDatabaseMessage || "An internal server error occurred."
   });
 }
 
