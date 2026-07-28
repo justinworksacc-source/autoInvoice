@@ -2,14 +2,28 @@ import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { formatDateInput, formatDueDate, isDateInput, parseDateInput } from "../shared";
+function manilaClock(date = /* @__PURE__ */ new Date()) {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  }).format(date);
+}
 function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme, onThemeChange, autoSendEnabled, onAutoSendChange }) {
   const [draftBusinessDate, setDraftBusinessDate] = useState(businessDate);
   const [draftBusinessTime, setDraftBusinessTime] = useState(businessTime);
+  const [liveManilaTime, setLiveManilaTime] = useState(() => manilaClock());
   const [saved, setSaved] = useState(false);
   useEffect(() => {
     setDraftBusinessDate(businessDate);
     setDraftBusinessTime(businessTime);
   }, [businessDate, businessTime]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setLiveManilaTime(manilaClock()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   function saveDate(event) {
     event.preventDefault();
     const nextDate = isDateInput(draftBusinessDate) ? draftBusinessDate : formatDateInput();
@@ -52,7 +66,8 @@ function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme,
         /* @__PURE__ */ jsxs("div", { className: "current-business-date", children: [
           /* @__PURE__ */ jsx("span", { children: "Current business date & time" }),
           /* @__PURE__ */ jsx("strong", { children: `${formatDueDate(parseDateInput(businessDate))} · ${businessTime}` }),
-          /* @__PURE__ */ jsx("small", { children: "Saved in MariaDB and synchronized daily by cron." })
+          /* @__PURE__ */ jsx("small", { children: `Live Manila time: ${liveManilaTime}` }),
+          /* @__PURE__ */ jsx("small", { children: "Business date and time are saved in MariaDB; the live clock updates every second." })
         ] }),
         /* @__PURE__ */ jsxs("form", { className: "settings-date-form", onSubmit: saveDate, children: [
           /* @__PURE__ */ jsxs("label", { children: [
