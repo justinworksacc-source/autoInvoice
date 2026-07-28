@@ -262,15 +262,20 @@ function App() {
       return;
     }
     let cancelled = false;
-    requestBusinessDate().then(({ businessDate: databaseBusinessDate, businessTime: databaseBusinessTime }) => {
-      if (!cancelled && isDateInput(databaseBusinessDate)) {
-        setBusinessDate(databaseBusinessDate);
-        setBusinessTime(databaseBusinessTime);
-      }
-    }).catch(() => {
-    });
+    function syncBusinessClock() {
+      requestBusinessDate().then(({ businessDate: databaseBusinessDate, businessTime: databaseBusinessTime }) => {
+        if (!cancelled && isDateInput(databaseBusinessDate)) {
+          setBusinessDate(databaseBusinessDate);
+          setBusinessTime(databaseBusinessTime);
+        }
+      }).catch(() => {
+      });
+    }
+    syncBusinessClock();
+    const timer = window.setInterval(syncBusinessClock, 60 * 1000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [authChecked, session]);
   useEffect(() => {
