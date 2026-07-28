@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const response = await fetch(webhook, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Webhook-Secret": process.env.SEND_INVOICE_SECRET || "" },
-      body: JSON.stringify({ invoice })
+      body: JSON.stringify({ secret: process.env.SEND_INVOICE_SECRET || "", invoice })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.success === false) throw Object.assign(new Error(result.error || "Invoice delivery webhook failed."), { status: 502 });
