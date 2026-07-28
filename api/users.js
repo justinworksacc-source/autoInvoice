@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { database } from "../server/db.js";
+import { database, ensureAuthSchema } from "../server/db.js";
 import { body, fail, json, requireRole, requireSession } from "../server/security.js";
 
 const roles = new Set(["admin", "accountant", "staff"]);
@@ -18,6 +18,7 @@ export default async function handler(req, res) {
   try {
     const session = requireSession(req);
     requireRole(session, ["admin"]);
+    await ensureAuthSchema();
     if (req.method === "GET") return json(res, 200, { success: true, users: await listUsers() });
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const input = await body(req);
