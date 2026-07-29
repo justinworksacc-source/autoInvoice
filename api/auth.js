@@ -30,7 +30,18 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const session = readSession(req);
       if (!session) return json(res, 401, { success: false, error: "Authentication required." });
-      return json(res, 200, { success: true, user: { username: session.username, role: session.role }, csrf_token: session.csrf });
+      await ensureAuthSchema();
+      const [rows] = await database().execute(
+        "SELECT id,username,role FROM auth_accounts WHERE id=? AND is_active=1 LIMIT 1",
+        [session.userId]
+      );
+      const account = rows[0];
+      if (!account) {
+        clearSession(res);
+        return json(res, 401, { success: false, error: "Authentication required." });
+      }
+      const verifiedSession = createSession(res, account);
+      return json(res, 200, { success: true, user: { username: account.username, role: verifiedSession.role }, csrf_token: verifiedSession.csrf });
     }
     if (req.method === "PUT") {
       const session = requireSession(req);

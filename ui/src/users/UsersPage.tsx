@@ -56,8 +56,8 @@ function UsersPage({ session }) {
       setBusyUserId(null);
     }
   }
-  if (session.role !== "admin") return null;
-  const selectableUsers = users.filter((user) => user.username !== session.username);
+  if (!["super_admin", "admin"].includes(session.role)) return null;
+  const selectableUsers = users.filter((user) => user.username !== session.username && user.role !== "super_admin");
   const allUsersSelected = selectableUsers.length > 0 && selectableUsers.every((user) => selectedUserIds.includes(user.id));
   const bulkBusy = busyUserId === "bulk";
   return jsxs("section", { className: "page-stack users-page", children: [
@@ -95,19 +95,25 @@ function UsersPage({ session }) {
         ] }),
         jsx("div", { className: "user-list", children: users.map((user) => {
           const isCurrentUser = user.username === session.username;
+          const isSuperAdmin = user.role === "super_admin";
           const isBusy = busyUserId === user.id;
           return jsxs("div", { className: "user-card", children: [
-            jsx("input", { className: "user-select-checkbox", type: "checkbox", checked: selectedUserIds.includes(user.id), disabled: isCurrentUser || bulkBusy, "aria-label": isCurrentUser ? "Current account cannot be selected" : `Select ${user.fullName || user.username}`, onChange: (event) => setSelectedUserIds((selectedIds) => event.target.checked ? [...selectedIds, user.id] : selectedIds.filter((userId) => userId !== user.id)) }),
+            jsx("input", { className: "user-select-checkbox", type: "checkbox", checked: selectedUserIds.includes(user.id), disabled: isCurrentUser || isSuperAdmin || bulkBusy, "aria-label": isSuperAdmin ? "Super Administrator cannot be selected" : isCurrentUser ? "Current account cannot be selected" : `Select ${user.fullName || user.username}`, onChange: (event) => setSelectedUserIds((selectedIds) => event.target.checked ? [...selectedIds, user.id] : selectedIds.filter((userId) => userId !== user.id)) }),
             jsxs("div", { className: "user-identity", children: [
               jsx("span", { className: "user-avatar", "aria-hidden": "true", children: (user.fullName || user.username).trim().charAt(0).toUpperCase() }),
               jsxs("span", { children: [
-                jsxs("strong", { children: [user.fullName || user.username, isCurrentUser ? jsx("small", { className: "current-user-label", children: "You" }) : null] }),
+                jsxs("strong", { children: [
+                  user.fullName || user.username,
+                  isSuperAdmin ? jsx("small", { className: "super-admin-label", children: "Super Admin" }) : null,
+                  isCurrentUser ? jsx("small", { className: "current-user-label", children: "You" }) : null
+                ] }),
                 jsx("small", { children: `@${user.username}` })
               ] })
             ] }),
             jsxs("label", { className: "user-role-control", children: [
               jsx("span", { children: "Role" }),
-              jsxs("select", { value: user.role, disabled: isBusy, onChange: (event) => void updateUser(user.id, { action: "set_role", role: event.target.value }, "User role updated."), children: [
+              jsxs("select", { value: user.role, disabled: isBusy || isSuperAdmin, title: isSuperAdmin ? "The Super Administrator role is protected." : "", onChange: (event) => void updateUser(user.id, { action: "set_role", role: event.target.value }, "User role updated."), children: [
+                isSuperAdmin ? jsx("option", { value: "super_admin", children: "Super Administrator" }) : null,
                 jsx("option", { value: "staff", children: "Staff" }),
                 jsx("option", { value: "accountant", children: "Accountant" }),
                 jsx("option", { value: "admin", children: "Administrator" })

@@ -6191,6 +6191,15 @@ pre {
   padding: 0.15rem 0.4rem;
 }
 
+.super-admin-label {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  border-radius: 999px;
+  color: white !important;
+  font-size: 0.7rem;
+  padding: 0.18rem 0.45rem;
+  white-space: nowrap;
+}
+
 .user-role-control {
   gap: 0.3rem;
 }

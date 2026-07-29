@@ -129,6 +129,12 @@ export async function ensureAuthSchema() {
           }
         }
       }
+      const [[superAdmin]] = await db.execute("SELECT COUNT(*) count FROM auth_accounts WHERE role='super_admin'");
+      if (!Number(superAdmin.count)) {
+        await db.execute(
+          "UPDATE auth_accounts SET role='super_admin',is_active=1 WHERE LOWER(username)='visualsecsys'"
+        );
+      }
     })().catch((error) => {
       authSchemaPromise = undefined;
       throw error;

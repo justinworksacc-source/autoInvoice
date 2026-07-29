@@ -25,7 +25,7 @@ function cookies(req) {
 }
 
 export function createSession(res, user) {
-  const role = ["admin", "accountant", "staff"].includes(user.role) ? user.role : "staff";
+  const role = ["super_admin", "admin", "accountant", "staff"].includes(user.role) ? user.role : "staff";
   const session = {
     userId: Number(user.id),
     username: user.username,
@@ -40,7 +40,7 @@ export function createSession(res, user) {
 }
 
 export function requireRole(session, roles) {
-  if (!roles.includes(session.role)) {
+  if (session.role !== "super_admin" && !roles.includes(session.role)) {
     throw Object.assign(new Error("You do not have permission to perform this action."), { status: 403 });
   }
   return session;

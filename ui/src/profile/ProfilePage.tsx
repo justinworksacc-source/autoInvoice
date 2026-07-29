@@ -1,6 +1,7 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
 function ProfilePage({ profile, onProfileSave, session, onLogout, onCredentialsChange }) {
+  const canManageCompanyProfile = session.role === "super_admin";
   const [companyName, setCompanyName] = useState(profile.companyName);
   const [gmailAlias, setGmailAlias] = useState(profile.gmailAlias);
   const [saved, setSaved] = useState(false);
@@ -40,6 +41,10 @@ function ProfilePage({ profile, onProfileSave, session, onLogout, onCredentialsC
   }
   async function handleSaveProfile(event) {
     event.preventDefault();
+    if (!canManageCompanyProfile) {
+      setProfileMessage("Only the Super Administrator can change the company profile.");
+      return;
+    }
     setSaved(false);
     setProfileMessage("");
     try {
@@ -67,21 +72,21 @@ function ProfilePage({ profile, onProfileSave, session, onLogout, onCredentialsC
           /* @__PURE__ */ jsx("span", { className: "profile-heading-icon", "aria-hidden": "true", children: "\u25A5" }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("h3", { children: "Company Profile" }),
-            /* @__PURE__ */ jsx("p", { children: "Manage your company information." })
+            /* @__PURE__ */ jsx("p", { children: canManageCompanyProfile ? "Manage your company information." : "Only the Super Administrator can change these values." })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("label", { children: [
           "Company name",
-          /* @__PURE__ */ jsx("input", { value: companyName, onChange: (event) => setCompanyName(event.target.value), required: true })
+          /* @__PURE__ */ jsx("input", { value: companyName, onChange: (event) => setCompanyName(event.target.value), readOnly: !canManageCompanyProfile, required: true })
         ] }),
         /* @__PURE__ */ jsxs("label", { children: [
           "Gmail sender email",
-          /* @__PURE__ */ jsx("input", { type: "email", value: gmailAlias, onChange: (event) => setGmailAlias(event.target.value), required: true })
+          /* @__PURE__ */ jsx("input", { type: "email", value: gmailAlias, onChange: (event) => setGmailAlias(event.target.value), readOnly: !canManageCompanyProfile, required: true })
         ] }),
-        /* @__PURE__ */ jsxs("button", { type: "submit", children: [
+        canManageCompanyProfile ? /* @__PURE__ */ jsxs("button", { type: "submit", children: [
           /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u25A3" }),
           " Save profile"
-        ] })
+        ] }) : /* @__PURE__ */ jsx("span", { className: "status-pill", children: "Super Administrator only" })
       ] }),
       /* @__PURE__ */ jsxs("form", { className: "profile-editor-card", onSubmit: handleSaveCredentials, children: [
         /* @__PURE__ */ jsxs("div", { className: "profile-card-heading", children: [

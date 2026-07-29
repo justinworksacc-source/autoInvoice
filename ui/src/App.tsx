@@ -308,7 +308,7 @@ function App() {
     requestBusinessProfile().then(async (databaseProfile) => {
       const hasExistingLocalSender = profile.gmailAlias
         && profile.gmailAlias !== defaultBusinessProfile.gmailAlias;
-      const resolvedProfile = !databaseProfile.gmailAlias && hasExistingLocalSender
+      const resolvedProfile = session.role === "super_admin" && !databaseProfile.gmailAlias && hasExistingLocalSender
         ? await requestBusinessProfile(profile)
         : databaseProfile;
       if (!cancelled) setProfile(resolvedProfile);
@@ -506,7 +506,7 @@ function App() {
         /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }),
         /* @__PURE__ */ jsx(NavLink, { to: "/accountant", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }),
         /* @__PURE__ */ jsx(NavLink, { to: "/operations", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }),
-        session.role === "admin" ? /* @__PURE__ */ jsx(NavLink, { to: "/users", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
+        ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(NavLink, { to: "/users", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "sidebar-footer", children: [
         /* @__PURE__ */ jsxs("div", { className: "account-links", children: [
@@ -569,7 +569,7 @@ function App() {
         /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory }) }),
         /* @__PURE__ */ jsx(Route, { path: "/accountant", element: /* @__PURE__ */ jsx(AccountantPage, { clients, payments, businessDate }) }),
         /* @__PURE__ */ jsx(Route, { path: "/operations", element: /* @__PURE__ */ jsx(OperationsPage, { clients, payments, businessDate }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/users", element: session.role === "admin" ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: "/", replace: true }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/users", element: ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: "/", replace: true }) }),
         /* @__PURE__ */ jsx(
           Route,
           {

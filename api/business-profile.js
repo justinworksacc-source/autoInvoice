@@ -1,5 +1,5 @@
 import { database, ensureCompany } from "../server/db.js";
-import { body, fail, json, requireSession } from "../server/security.js";
+import { body, fail, json, requireRole, requireSession } from "../server/security.js";
 
 async function ensureProfileSchema() {
   await ensureCompany();
@@ -29,7 +29,7 @@ async function readProfile() {
 
 export default async function handler(req, res) {
   try {
-    requireSession(req);
+    const session = requireSession(req);
     await ensureProfileSchema();
     if (req.method === "GET") {
       return json(res, 200, { success: true, profile: await readProfile() });
@@ -37,6 +37,7 @@ export default async function handler(req, res) {
     if (req.method !== "POST") {
       return json(res, 405, { success: false, error: "Method not allowed." });
     }
+    requireRole(session, ["super_admin"]);
     const input = await body(req);
     const companyName = String(input.companyName || "").trim();
     const gmailAlias = String(input.gmailAlias || "").trim().toLowerCase();

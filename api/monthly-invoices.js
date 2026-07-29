@@ -23,9 +23,28 @@ async function tableColumns(table) {
   return new Set(rows.map((row) => row.columnName));
 }
 
+async function ensureInvoiceItemColumns() {
+  const columns = await tableColumns("monthly_invoice_clients");
+  const additions = [
+    ["item_type", "ALTER TABLE monthly_invoice_clients ADD COLUMN item_type VARCHAR(30) NOT NULL DEFAULT 'Service'"],
+    ["item_name", "ALTER TABLE monthly_invoice_clients ADD COLUMN item_name VARCHAR(255) NOT NULL DEFAULT 'Monthly service charge'"],
+    ["item_description", "ALTER TABLE monthly_invoice_clients ADD COLUMN item_description TEXT NULL"]
+  ];
+  for (const [column, statement] of additions) {
+    if (!columns.has(column)) {
+      try {
+        await database().execute(statement);
+      } catch (error) {
+        if (error?.code !== "ER_DUP_FIELDNAME") throw error;
+      }
+    }
+  }
+}
+
 async function readStore() {
   await ensureCompany();
   await ensureInvoiceHistorySchema();
+  await ensureInvoiceItemColumns();
   const db = database();
   const clientColumns = await tableColumns("monthly_invoice_clients");
   const customerNumber = clientColumns.has("customer_number")
@@ -69,6 +88,7 @@ async function upsertClient(client) {
   const email = String(client.email || client.id || "").trim().toLowerCase();
   if (!email) throw Object.assign(new Error("Client email is required."), { status: 422 });
   await ensureCompany();
+  await ensureInvoiceItemColumns();
   const columns = await tableColumns("monthly_invoice_clients");
   const hasInvoiceItems = columns.has("item_type") && columns.has("item_name") && columns.has("item_description");
   const itemColumns = hasInvoiceItems ? ", item_type, item_name, item_description" : "";

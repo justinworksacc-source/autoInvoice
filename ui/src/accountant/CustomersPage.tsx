@@ -70,6 +70,9 @@ function CustomersPage({
   const [editAddressCity, setEditAddressCity] = useState("");
   const [editAddressPostalCode, setEditAddressPostalCode] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editItemType, setEditItemType] = useState("Service");
+  const [editItemName, setEditItemName] = useState("");
+  const [editItemDescription, setEditItemDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState(formatDateInput());
   const [editDueAfterDays, setEditDueAfterDays] = useState("14");
   const [isSending, setIsSending] = useState(false);
@@ -275,6 +278,9 @@ function CustomersPage({
     setEditAddressCity("");
     setEditAddressPostalCode("");
     setEditAmount(client.amount);
+    setEditItemType(client.itemType || "Service");
+    setEditItemName(client.itemName || "Monthly service charge");
+    setEditItemDescription(client.itemDescription || "");
     setEditStartDate(getClientStartDateInput(client));
     setEditDueAfterDays(client.dueAfterDays || "14");
   }
@@ -305,6 +311,9 @@ function CustomersPage({
       email: nextEmail,
       address: editAddress.trim(),
       amount: editAmount.trim() || "0.00",
+      itemType: editItemType,
+      itemName: editItemName.trim() || "Monthly service charge",
+      itemDescription: editItemDescription.trim(),
       startDate: cleanStartDate,
       billingDay: nextBillingDay,
       dueAfterDays: editDueAfterDays
@@ -661,7 +670,15 @@ function CustomersPage({
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("dt", { children: "Unpaid cycles" }),
           /* @__PURE__ */ jsx("dd", { children: pendingSendSummary.unpaidInvoiceCount })
-        ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("dt", { children: clientPendingSend.itemType || "Service" }),
+          /* @__PURE__ */ jsx("dd", { children: clientPendingSend.itemName || "Monthly service charge" })
+        ] }),
+        clientPendingSend.itemDescription ? /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("dt", { children: "Description" }),
+          /* @__PURE__ */ jsx("dd", { children: clientPendingSend.itemDescription })
+        ] }) : null
       ] }) : null,
       sendError ? /* @__PURE__ */ jsx("p", { className: "dialog-error", children: sendError }) : null,
       /* @__PURE__ */ jsxs("div", { className: "button-row", children: [
@@ -856,6 +873,23 @@ function CustomersPage({
           "Start date",
           /* @__PURE__ */ jsx("input", { type: "date", value: editStartDate, onChange: (event) => setEditStartDate(event.target.value) })
         ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Item type",
+          /* @__PURE__ */ jsxs("select", { value: editItemType, onChange: (event) => setEditItemType(event.target.value), children: [
+            /* @__PURE__ */ jsx("option", { value: "Service", children: "Service" }),
+            /* @__PURE__ */ jsx("option", { value: "Product", children: "Product" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Service or product",
+          /* @__PURE__ */ jsx("input", { value: editItemName, placeholder: "e.g. Consultancy services", onChange: (event) => setEditItemName(event.target.value), required: true })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("label", { children: [
+        "Description (optional)",
+        /* @__PURE__ */ jsx("textarea", { value: editItemDescription, placeholder: "e.g. Monthly business consultancy and advisory support", rows: 3, onChange: (event) => setEditItemDescription(event.target.value) })
       ] }),
       /* @__PURE__ */ jsxs("label", { children: [
         "Due after days",
