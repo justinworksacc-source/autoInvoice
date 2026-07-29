@@ -24,7 +24,7 @@ function LoginPage({ onLogin }) {
   }
   return /* @__PURE__ */ jsx("main", { className: "login-shell", children: /* @__PURE__ */ jsxs("div", { className: "login-content", children: [
     /* @__PURE__ */ jsxs("header", { className: "login-brand-heading", children: [
-      /* @__PURE__ */ jsx("img", { src: "/logo.png", alt: "Visual Security Systems", className: "login-brand-logo" }),
+      /* @__PURE__ */ jsx("img", { src: "/ui/vss_logo.svg", alt: "Visual Security Systems", className: "login-brand-logo", width: 512, height: 512 }),
       /* @__PURE__ */ jsx("h1", { children: "Visual Security System" }),
       /* @__PURE__ */ jsx("p", { children: "Information Technology Solutions" })
     ] }),

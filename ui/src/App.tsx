@@ -1,18 +1,18 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
 import DashboardPage from "./dashboard/DashboardPage";
-import AccountantPage from "./accountant/AccountantPage";
-import CustomersPage from "./accountant/CustomersPage";
-import PrepareInvoicesPage from "./accountant/PrepareInvoicesPage";
-import ProfilePage from "./profile/ProfilePage";
-import SettingsPage from "./settings/SettingsPage";
 import LoginPage from "./auth/LoginPage";
-import OperationsPage from "./operations/OperationsPage";
-import CustomerPortalPage from "./portal/CustomerPortalPage";
-import UsersPage from "./users/UsersPage";
 import { saveCsrfToken, secureFetch } from "./apiSecurity";
 import { clampNumber } from "./shared";
+const AccountantPage = lazy(() => import("./accountant/AccountantPage"));
+const CustomersPage = lazy(() => import("./accountant/CustomersPage"));
+const PrepareInvoicesPage = lazy(() => import("./accountant/PrepareInvoicesPage"));
+const ProfilePage = lazy(() => import("./profile/ProfilePage"));
+const SettingsPage = lazy(() => import("./settings/SettingsPage"));
+const OperationsPage = lazy(() => import("./operations/OperationsPage"));
+const CustomerPortalPage = lazy(() => import("./portal/CustomerPortalPage"));
+const UsersPage = lazy(() => import("./users/UsersPage"));
 const defaultBusinessProfile = {
   companyName: "Visual Security Systems",
   gmailAlias: "billing@yourcompany.com"
@@ -446,15 +446,15 @@ function App() {
     return null;
   }
   if (window.location.pathname === "/portal") {
-    return /* @__PURE__ */ jsx(CustomerPortalPage, {});
+    return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("main", { className: "portal-shell", children: "Loading billing portal\u2026" }), children: /* @__PURE__ */ jsx(CustomerPortalPage, {}) });
   }
   if (!session) {
     return /* @__PURE__ */ jsx(LoginPage, { onLogin: handleLogin });
   }
-  return /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
+  return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading workspace\u2026" }), children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
     /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
       /* @__PURE__ */ jsxs("div", { className: "brand-block", children: [
-        /* @__PURE__ */ jsx("img", { src: "/logo.png", alt: "Visual Security Systems logo", className: "brand-logo" }),
+        /* @__PURE__ */ jsx("img", { src: "/ui/vss_logo.svg", alt: "Visual Security Systems logo", className: "brand-logo", width: 512, height: 512 }),
         /* @__PURE__ */ jsx("h1", { children: "Visual Security Systems" })
       ] }),
       /* @__PURE__ */ jsxs("nav", { "aria-label": "Primary navigation", children: [
@@ -555,7 +555,7 @@ function App() {
         )
       ] })
     ] })
-  ] }) });
+  ] }) }) });
 }
 export {
   App as default

@@ -40,9 +40,23 @@ function PrepareInvoicesPage({
   );
   const [saved, setSaved] = useState(false);
   const [customerSaved, setCustomerSaved] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   useEffect(() => {
     setStartDate(businessDate);
   }, [businessDate]);
+  useEffect(() => {
+    if (!isFormOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFormOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isFormOpen]);
   const cleanStartDate = isDateInput(startDate) ? startDate : businessDate;
   const startDateValue = parseDateInput(cleanStartDate);
   const billingDay = String(clampNumber(String(startDateValue.getDate()), 1, 1, 31));
@@ -124,6 +138,7 @@ function PrepareInvoicesPage({
     setItemType("Service");
     setItemName("");
     setItemDescription("");
+    setIsFormOpen(false);
   }
   return /* @__PURE__ */ jsxs("section", { className: "page-stack monthly-invoices-page", children: [
     /* @__PURE__ */ jsx("div", { className: "page-heading", children: /* @__PURE__ */ jsxs("div", { className: "page-heading-with-back", children: [
@@ -157,9 +172,74 @@ function PrepareInvoicesPage({
         /* @__PURE__ */ jsx("small", { children: "Invoice payment terms" })
       ] })
     ] }),
-    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Monthly invoice rule saved locally for the next billing run." }) : null,
+    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Monthly invoice saved and added to the list below." }) : null,
     customerSaved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Client Gmail recipient saved to the monthly invoice list." }) : null,
-    /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
+    /* @__PURE__ */ jsxs("div", { className: "monthly-invoice-actions", children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h3", { children: "Monthly invoice records" }),
+        /* @__PURE__ */ jsx("p", { children: "Create an invoice in the pop-up form and it will appear here after saving." })
+      ] }),
+      /* @__PURE__ */ jsxs("button", { type: "button", className: "monthly-create-button", onClick: () => {
+        setSaved(false);
+        setCustomerSaved(false);
+        setIsFormOpen(true);
+      }, children: [
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "+" }),
+        " New monthly invoice"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("section", { className: "saved-monthly-invoices", "aria-label": "Saved monthly invoices", children: [
+      /* @__PURE__ */ jsxs("div", { className: "saved-monthly-heading", children: [
+        /* @__PURE__ */ jsx("h3", { children: "Saved invoices" }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          clients.length,
+          clients.length === 1 ? " invoice" : " invoices"
+        ] })
+      ] }),
+      clients.length ? /* @__PURE__ */ jsx("div", { className: "saved-monthly-grid", children: clients.map((client) => /* @__PURE__ */ jsxs("article", { className: "saved-monthly-card", children: [
+        /* @__PURE__ */ jsxs("div", { className: "saved-monthly-card-top", children: [
+          /* @__PURE__ */ jsx("span", { className: "saved-monthly-icon", "aria-hidden": "true", children: "\u25A7" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: client.invoiceNumber }),
+            /* @__PURE__ */ jsx("small", { children: client.status })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsx("h4", { children: client.itemName || "Monthly service charge" }),
+        client.itemDescription ? /* @__PURE__ */ jsx("p", { children: client.itemDescription }) : null,
+        /* @__PURE__ */ jsxs("dl", { children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Customer" }),
+            /* @__PURE__ */ jsx("dd", { children: client.name })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Monthly amount" }),
+            /* @__PURE__ */ jsx("dd", { children: client.amount })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Due after" }),
+            /* @__PURE__ */ jsxs("dd", { children: [
+              client.dueAfterDays || "14",
+              " days"
+            ] })
+          ] })
+        ] })
+      ] }, client.id)) }) : /* @__PURE__ */ jsxs("div", { className: "saved-monthly-empty", children: [
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u25A7" }),
+        /* @__PURE__ */ jsx("strong", { children: "No monthly invoices yet" }),
+        /* @__PURE__ */ jsx("p", { children: "Click New monthly invoice to create your first record." })
+      ] })
+    ] }),
+    isFormOpen ? /* @__PURE__ */ jsx("div", { className: "invoice-modal-backdrop", onMouseDown: (event) => {
+      if (event.target === event.currentTarget) setIsFormOpen(false);
+    }, children: /* @__PURE__ */ jsxs("div", { className: "invoice-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "invoice-modal-title", onMouseDown: (event) => event.stopPropagation(), children: [
+      /* @__PURE__ */ jsxs("div", { className: "invoice-modal-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("span", { children: "Monthly invoice" }),
+          /* @__PURE__ */ jsx("h3", { id: "invoice-modal-title", children: "Create monthly invoice" })
+        ] }),
+        /* @__PURE__ */ jsx("button", { type: "button", className: "invoice-modal-close", onClick: () => setIsFormOpen(false), "aria-label": "Close invoice form", children: "\xD7" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
       /* @__PURE__ */ jsxs("form", { id: "monthly-invoice-settings", className: "work-form settings-card monthly-settings-card", onSubmit: handleSave, children: [
         /* @__PURE__ */ jsxs("div", { className: "monthly-card-title", children: [
           /* @__PURE__ */ jsx("span", { children: "\u2699" }),
@@ -392,7 +472,8 @@ function PrepareInvoicesPage({
         ] }),
         /* @__PURE__ */ jsx("p", { className: "invoice-summary-note", children: "The Gmail attachment contains the final invoice layout. This panel only confirms the information that will be placed in that PDF." })
       ] })
-    ] }),
+      ] })
+    ] }) }) : null,
     /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
       /* @__PURE__ */ jsxs("form", { className: "work-form settings-card monthly-email-card", children: [
         /* @__PURE__ */ jsxs("label", { children: [
