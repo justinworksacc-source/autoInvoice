@@ -245,6 +245,14 @@ function PrepareInvoicesPage({
           /* @__PURE__ */ jsx("span", { children: "\u2699" }),
           /* @__PURE__ */ jsx("h3", { children: "Invoice Automation Settings" })
         ] }),
+        /* @__PURE__ */ jsx("p", { className: "monthly-form-intro", children: "Set the billing schedule, customer, and service or product for this recurring invoice." }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "1" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Billing schedule" }),
+            /* @__PURE__ */ jsx("small", { children: "Choose when the invoice starts, sends, and becomes due." })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Customer start date",
@@ -269,6 +277,13 @@ function PrepareInvoicesPage({
           "Company name",
           /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: profile.companyName || "Not configured" })
         ] }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "2" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Customer information" }),
+            /* @__PURE__ */ jsx("small", { children: "Enter who will receive this invoice." })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Customer name",
@@ -288,6 +303,13 @@ function PrepareInvoicesPage({
             )
           ] })
         ] }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "3" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Invoice item" }),
+            /* @__PURE__ */ jsx("small", { children: "Describe the service or product and its monthly price." })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Invoice number (automatic)",
@@ -295,7 +317,7 @@ function PrepareInvoicesPage({
           ] }),
           /* @__PURE__ */ jsxs("label", { children: [
             "Monthly amount",
-            /* @__PURE__ */ jsx("input", { inputMode: "decimal", value: invoiceAmount, placeholder: "0.00", onChange: (event) => setInvoiceAmount(event.target.value), required: true })
+            /* @__PURE__ */ jsx("input", { type: "number", inputMode: "decimal", min: "0", step: "0.01", value: invoiceAmount, placeholder: "0.00", onChange: (event) => setInvoiceAmount(event.target.value), required: true })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
@@ -414,11 +436,19 @@ function PrepareInvoicesPage({
             customerAddress || "Select the address fields above."
           ] })
         ] }),
-        /* @__PURE__ */ jsxs("label", { className: "checkbox-line", children: [
-          /* @__PURE__ */ jsx("input", { type: "checkbox", checked: autoSendEnabled, onChange: (event) => onAutoSendChange(event.target.checked) }),
-          "Send monthly invoices automatically 7 days before due"
-        ] }),
-        /* @__PURE__ */ jsx("button", { type: "submit", children: "Save monthly invoice" })
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-footer", children: [
+          /* @__PURE__ */ jsxs("label", { className: "checkbox-line monthly-auto-send", children: [
+            /* @__PURE__ */ jsx("input", { type: "checkbox", checked: autoSendEnabled, onChange: (event) => onAutoSendChange(event.target.checked) }),
+            /* @__PURE__ */ jsxs("span", { children: [
+              /* @__PURE__ */ jsx("strong", { children: "Automatic delivery" }),
+              /* @__PURE__ */ jsx("small", { children: "Send 7 days before the due date." })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "monthly-form-actions", children: [
+            /* @__PURE__ */ jsx("button", { type: "button", className: "secondary-button", onClick: () => setIsFormOpen(false), children: "Cancel" }),
+            /* @__PURE__ */ jsx("button", { type: "submit", children: "Save monthly invoice" })
+          ] })
+        ] })
       ] }),
       /* @__PURE__ */ jsxs("article", { className: "invoice-preview invoice-text-summary", "aria-label": "Invoice details summary", children: [
         /* @__PURE__ */ jsxs("div", { className: "panel-heading", children: [

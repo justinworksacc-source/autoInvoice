@@ -3672,8 +3672,54 @@ pre {
 
 .monthly-card-title h3 {
   color: #f7fbff;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   margin: 0;
+}
+
+.monthly-form-intro {
+  color: #91a3d5;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin: -0.15rem 0 0.35rem;
+}
+
+.monthly-form-section-heading {
+  align-items: center;
+  border-top: 1px solid rgba(132, 176, 255, 0.14);
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+}
+
+.monthly-form-section-heading > span {
+  align-items: center;
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  border-radius: 50%;
+  color: #ffffff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: 900;
+  height: 27px;
+  justify-content: center;
+  width: 27px;
+}
+
+.monthly-form-section-heading > div {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.monthly-form-section-heading strong {
+  color: #edf5ff;
+  font-size: 0.82rem;
+}
+
+.monthly-form-section-heading small {
+  color: #8192c3;
+  font-size: 0.68rem;
+  font-weight: 500;
 }
 
 .monthly-field-title {
@@ -3754,8 +3800,8 @@ pre {
 
 .monthly-invoices-page .monthly-settings-card,
 .monthly-invoices-page .monthly-email-card {
-  gap: 0.7rem;
-  padding: 1rem;
+  gap: 0.78rem;
+  padding: 1.15rem;
 }
 
 .monthly-invoices-page .monthly-settings-card label,
@@ -3775,13 +3821,66 @@ pre {
 .monthly-invoices-page .monthly-email-card input,
 .monthly-invoices-page .monthly-email-card textarea {
   font-size: 0.84rem;
-  padding: 0.62rem 0.72rem;
+  min-height: 42px;
+  padding: 0.68rem 0.78rem;
 }
 
-.monthly-invoices-page .monthly-settings-card button[type='submit'] {
+.monthly-invoices-page .monthly-settings-card textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.monthly-invoices-page .monthly-form-actions button {
   font-size: 0.82rem;
-  min-height: 38px;
-  padding: 0.55rem 0.85rem;
+  min-height: 40px;
+  padding: 0.58rem 0.95rem;
+}
+
+.monthly-form-footer {
+  align-items: center;
+  background: rgba(7, 13, 31, 0.7);
+  border: 1px solid rgba(132, 176, 255, 0.16);
+  border-radius: 9px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  padding: 0.75rem;
+}
+
+.monthly-auto-send {
+  align-items: center;
+  margin: 0;
+}
+
+.monthly-auto-send > span {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.monthly-auto-send strong {
+  color: #e8f0ff;
+  font-size: 0.75rem;
+}
+
+.monthly-auto-send small {
+  color: #8192c3;
+  font-size: 0.66rem;
+  font-weight: 500;
+}
+
+.monthly-form-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.55rem;
+}
+
+.invoice-modal .invoice-text-summary {
+  align-self: start;
+  max-height: calc(100vh - 8.5rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
 }
 
 .monthly-readonly-value {
@@ -3802,6 +3901,26 @@ pre {
   background: #f4f7fb;
   border-color: #e1e7f0;
   color: #52607a;
+}
+
+[data-theme='light'] .monthly-form-intro,
+[data-theme='light'] .monthly-form-section-heading small,
+[data-theme='light'] .monthly-auto-send small {
+  color: #667085;
+}
+
+[data-theme='light'] .monthly-form-section-heading {
+  border-color: #e3eaf4;
+}
+
+[data-theme='light'] .monthly-form-section-heading strong,
+[data-theme='light'] .monthly-auto-send strong {
+  color: #17213b;
+}
+
+[data-theme='light'] .monthly-form-footer {
+  background: #f7f9fc;
+  border-color: #dfe7f2;
 }
 
 [data-theme='light'] .monthly-invoice-actions,
@@ -3945,6 +4064,22 @@ pre {
 
   .invoice-modal > .invoice-layout {
     padding: 0.8rem;
+  }
+
+  .invoice-modal .invoice-text-summary {
+    max-height: none;
+    overflow: visible;
+    position: static;
+  }
+
+  .monthly-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .monthly-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 

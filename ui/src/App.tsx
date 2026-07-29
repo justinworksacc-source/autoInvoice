@@ -454,7 +454,7 @@ function App() {
   return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading workspace\u2026" }), children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
     /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
       /* @__PURE__ */ jsxs("div", { className: "brand-block", children: [
-        /* @__PURE__ */ jsx("img", { src: "/ui/vss_logo.svg", alt: "Visual Security Systems logo", className: "brand-logo", width: 512, height: 512 }),
+        /* @__PURE__ */ jsx("img", { src: "/logo.png", alt: "Visual Security Systems logo", className: "brand-logo" }),
         /* @__PURE__ */ jsx("h1", { children: "Visual Security Systems" })
       ] }),
       /* @__PURE__ */ jsxs("nav", { "aria-label": "Primary navigation", children: [

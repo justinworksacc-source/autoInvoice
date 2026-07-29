@@ -35,7 +35,7 @@ function CustomerPortalPage() {
   if (!data) return jsx("main", { className: "portal-shell", children: jsx("p", { children: "Loading your billing account…" }) });
   const balance = data.invoices.reduce((sum, invoice) => sum + Number(invoice.balanceDue || 0), 0);
   return jsx("main", { className: "portal-shell", children: jsxs("article", { className: "portal-card", children: [
-    jsx("img", { src: "/ui/vss_logo.svg", alt: "Visual Security Systems", width: 512, height: 512 }),
+    jsx("img", { src: "/logo.png", alt: "Visual Security Systems" }),
     jsx("p", { className: "eyebrow", children: "Secure customer access" }),
     jsx("h1", { children: `Hello, ${data.client.name}` }),
     jsx("p", { children: data.client.address || data.client.email }),
