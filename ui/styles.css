@@ -409,23 +409,6 @@ a {
   padding: clamp(1rem, 3vw, 3rem);
 }
 
-.workspace-topbar {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  margin: 0 auto 0.9rem;
-  max-width: 1320px;
-  min-height: 44px;
-}
-
-.workspace-topbar-label {
-  color: #8192c3;
-  font-size: 0.7rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .reminder-menu {
   position: relative;
 }
@@ -434,7 +417,7 @@ a {
   align-items: center;
   background: rgba(13, 23, 51, 0.78);
   border: 1px solid rgba(132, 176, 255, 0.2);
-  border-radius: 50%;
+  border-radius: 8px;
   color: #aebff4;
   display: inline-flex;
   height: 42px;
@@ -464,7 +447,7 @@ a {
 
 .reminder-count {
   align-items: center;
-  background: #ef4444;
+  background: #f59e0b;
   border: 2px solid #081021;
   border-radius: 999px;
   color: #ffffff;
@@ -493,6 +476,13 @@ a {
   z-index: 100;
 }
 
+.account-links .reminder-popover {
+  bottom: calc(100% + 0.65rem);
+  left: 0;
+  right: auto;
+  top: auto;
+}
+
 .reminder-popover-heading {
   align-items: center;
   border-bottom: 1px solid rgba(132, 176, 255, 0.14);
@@ -517,9 +507,9 @@ a {
 }
 
 .reminder-popover-heading > span {
-  background: rgba(239, 68, 68, 0.14);
+  background: rgba(245, 158, 11, 0.14);
   border-radius: 999px;
-  color: #fca5a5;
+  color: #fbbf24;
   font-size: 0.7rem;
   font-weight: 900;
   padding: 0.3rem 0.55rem;
@@ -546,9 +536,9 @@ a {
 
 .reminder-alert-icon {
   align-items: center;
-  background: rgba(239, 68, 68, 0.14);
+  background: rgba(245, 158, 11, 0.14);
   border-radius: 50%;
-  color: #fca5a5;
+  color: #fbbf24;
   display: inline-flex;
   flex: 0 0 auto;
   font-size: 0.72rem;
@@ -575,7 +565,7 @@ a {
 }
 
 .reminder-list a > div > span {
-  color: #fca5a5;
+  color: #fbbf24;
   font-size: 0.7rem;
   font-weight: 750;
 }
@@ -610,10 +600,6 @@ a {
   font-size: 0.68rem;
   line-height: 1.45;
   margin: 0.25rem 0 0;
-}
-
-[data-theme='light'] .workspace-topbar-label {
-  color: #64748b;
 }
 
 [data-theme='light'] .reminder-button,

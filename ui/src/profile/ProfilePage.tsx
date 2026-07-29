@@ -139,7 +139,7 @@ function ProfilePage({ profile, onProfileSave, session, onLogout, onCredentialsC
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("span", { className: "current-profile-icon", "aria-hidden": "true", children: "\u2659" }),
           /* @__PURE__ */ jsxs("span", { children: [
-            /* @__PURE__ */ jsx("dt", { children: "Logged in as" }),
+            /* @__PURE__ */ jsx("dt", { children: "Logged in" }),
             /* @__PURE__ */ jsx("dd", { children: session.username || session.email })
           ] })
         ] }),
