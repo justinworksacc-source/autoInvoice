@@ -41,6 +41,12 @@ export default async function handler(req, res) {
       const role = String(input.role || "");
       if (!roles.has(role)) throw Object.assign(new Error("Invalid role."), { status: 422 });
       await database().execute("UPDATE auth_accounts SET role=? WHERE id=?", [role, Number(input.user_id)]);
+    } else if (input.action === "delete") {
+      const userId = Number(input.user_id);
+      if (!Number.isInteger(userId) || userId < 1) throw Object.assign(new Error("Invalid user account."), { status: 422 });
+      if (userId === session.userId) throw Object.assign(new Error("You cannot delete your own logged-in account."), { status: 422 });
+      const [result] = await database().execute("DELETE FROM auth_accounts WHERE id=?", [userId]);
+      if (!result.affectedRows) throw Object.assign(new Error("User account was not found."), { status: 404 });
     } else throw Object.assign(new Error("Unknown user operation."), { status: 422 });
     return json(res, 200, { success: true, users: await listUsers() });
   } catch (error) {

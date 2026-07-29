@@ -40,8 +40,8 @@ export default async function handler(req, res) {
       if (username.length < 3 || password.length < 8) throw Object.assign(new Error("Username needs 3 characters and password needs 8 characters."), { status: 422 });
       const hash = await bcrypt.hash(password, 12);
       await database().execute("UPDATE auth_accounts SET username = ?, password_hash = ? WHERE id = ?", [username, hash, session.userId]);
-      const next = createSession(res, { id: session.userId, username });
-      return json(res, 200, { success: true, user: { username }, csrf_token: next.csrf });
+      const next = createSession(res, { id: session.userId, username, role: session.role });
+      return json(res, 200, { success: true, user: { username, role: next.role }, csrf_token: next.csrf });
     }
     if (req.method === "DELETE") {
       requireSession(req);

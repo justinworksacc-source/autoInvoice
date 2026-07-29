@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import DashboardPage from "./dashboard/DashboardPage";
 import LoginPage from "./auth/LoginPage";
 import { saveCsrfToken, secureFetch } from "./apiSecurity";
@@ -269,7 +269,7 @@ function App() {
         return;
       }
       saveCsrfToken(result.csrf_token);
-      const verifiedSession = { email: result.user.username, username: result.user.username, signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
+      const verifiedSession = { email: result.user.username, username: result.user.username, role: result.user.role || "staff", signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
       window.localStorage.setItem(authStorageKey, JSON.stringify(verifiedSession));
       setSession(verifiedSession);
     }).catch(() => setSession(null)).finally(() => setAuthChecked(true));
@@ -440,7 +440,7 @@ function App() {
         return result.error || "Login failed.";
       }
       saveCsrfToken(result.csrf_token);
-      const nextSession = { email: result.user.username, username: result.user.username, role: result.user.role || "admin", signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
+      const nextSession = { email: result.user.username, username: result.user.username, role: result.user.role || "staff", signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
       window.localStorage.setItem(authStorageKey, JSON.stringify(nextSession));
       window.history.replaceState(null, "", "/");
       setProfileLoaded(false);
@@ -501,7 +501,7 @@ function App() {
         /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }),
         /* @__PURE__ */ jsx(NavLink, { to: "/accountant", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }),
         /* @__PURE__ */ jsx(NavLink, { to: "/operations", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }),
-        session.role === "admin" || !session.role ? /* @__PURE__ */ jsx(NavLink, { to: "/users", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
+        session.role === "admin" ? /* @__PURE__ */ jsx(NavLink, { to: "/users", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "sidebar-footer", children: [
         /* @__PURE__ */ jsxs("div", { className: "account-links", children: [
@@ -564,7 +564,7 @@ function App() {
         /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory }) }),
         /* @__PURE__ */ jsx(Route, { path: "/accountant", element: /* @__PURE__ */ jsx(AccountantPage, { clients, payments, businessDate }) }),
         /* @__PURE__ */ jsx(Route, { path: "/operations", element: /* @__PURE__ */ jsx(OperationsPage, { clients, payments, businessDate }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/users", element: /* @__PURE__ */ jsx(UsersPage, { session }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/users", element: session.role === "admin" ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: "/", replace: true }) }),
         /* @__PURE__ */ jsx(
           Route,
           {
