@@ -45,6 +45,9 @@ export async function sendInvoiceForClient(client, profile, referenceDate = /* @
       from_alias: profile.gmailAlias,
       company_name: profile.companyName,
       invoice_number: invoiceNumber,
+      item_type: client.itemType || "Service",
+      item_name: client.itemName || "Monthly service charge",
+      item_description: client.itemDescription || "",
       monthly_amount: formatAmount(parseAmount(client.amount)),
       previous_balance: formatAmount(previousBalance),
       amount: formatAmount(invoiceAmount),
@@ -56,6 +59,7 @@ export async function sendInvoiceForClient(client, profile, referenceDate = /* @
 Attached is your invoice ${invoiceNumber} from ${profile.companyName}.
 
 Current monthly charge: ${formatAmount(parseAmount(client.amount))}
+Service / product: ${client.itemName || "Monthly service charge"}
 Previous unpaid balance: ${formatAmount(previousBalance)}
 Total amount due: ${formatAmount(invoiceAmount)}
 Billing day: Day ${client.billingDay}

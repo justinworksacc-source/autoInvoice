@@ -20,6 +20,8 @@ function createInvoicePdf(invoice) {
     const invoiceNumber = text(invoice.invoice_number);
     const customer = text(invoice.to_name, text(invoice.to));
     const address = text(invoice.customer_address);
+    const itemName = text(invoice.item_name, "Monthly service charge");
+    const itemDescription = text(invoice.item_description);
 
     document.fillColor("#071a3d").fontSize(22).font("Helvetica-Bold").text(company);
     document.moveDown(0.25).fillColor("#48556a").fontSize(10).font("Helvetica")
@@ -43,12 +45,16 @@ function createInvoicePdf(invoice) {
       .text("AMOUNT", 445, tableTop + 10, { width: 88, align: "right" });
 
     const rowTop = tableTop + 30;
-    document.rect(50, rowTop, 495, 42).fill("#f3f7fc");
+    const rowHeight = itemDescription ? 58 : 42;
+    document.rect(50, rowTop, 495, rowHeight).fill("#f3f7fc");
     document.fillColor("#111827").font("Helvetica").fontSize(10)
-      .text(`Monthly service charge · Billing day ${text(invoice.billing_day)}`, 62, rowTop + 15)
+      .text(itemName, 62, rowTop + 11, { width: 360 })
       .text(text(invoice.monthly_amount, "0.00"), 445, rowTop + 15, { width: 88, align: "right" });
+    if (itemDescription) {
+      document.fillColor("#64748b").fontSize(8).text(itemDescription, 62, rowTop + 28, { width: 360, height: 22, ellipsis: true });
+    }
 
-    let summaryY = rowTop + 92;
+    let summaryY = rowTop + rowHeight + 50;
     const summaryLine = (label, value, bold = false) => {
       document.fillColor("#374151").font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(bold ? 12 : 10)
         .text(label, 315, summaryY, { width: 130 })

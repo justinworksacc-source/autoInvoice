@@ -41,7 +41,7 @@ export async function ensureCompany() {
   await db.execute(
     `INSERT INTO companies (id, name, tenant_key)
      VALUES (1, 'Visual Security Systems', 'visual-security-systems')
-     ON DUPLICATE KEY UPDATE name = VALUES(name)`
+     ON DUPLICATE KEY UPDATE tenant_key = VALUES(tenant_key)`
   );
 }
 

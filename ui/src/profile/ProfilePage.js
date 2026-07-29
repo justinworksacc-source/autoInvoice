@@ -1,14 +1,19 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { useState } from "react";
-function ProfilePage({ profile, setProfile, session, onLogout, onCredentialsChange }) {
+import { useEffect, useState } from "react";
+function ProfilePage({ profile, onProfileSave, session, onLogout, onCredentialsChange }) {
   const [companyName, setCompanyName] = useState(profile.companyName);
   const [gmailAlias, setGmailAlias] = useState(profile.gmailAlias);
   const [saved, setSaved] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
   const [username, setUsername] = useState(session.username || session.email);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [credentialsMessage, setCredentialsMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  useEffect(() => {
+    setCompanyName(profile.companyName);
+    setGmailAlias(profile.gmailAlias);
+  }, [profile.companyName, profile.gmailAlias]);
   async function handleSaveCredentials(event) {
     event.preventDefault();
     const cleanUsername = username.trim();
@@ -33,20 +38,29 @@ function ProfilePage({ profile, setProfile, session, onLogout, onCredentialsChan
       setCredentialsMessage(error instanceof Error ? error.message : "Credential update failed.");
     }
   }
-  function handleSaveProfile(event) {
+  async function handleSaveProfile(event) {
     event.preventDefault();
-    setProfile({
-      companyName: companyName.trim() || profile.companyName,
-      gmailAlias: gmailAlias.trim() || profile.gmailAlias
-    });
-    setSaved(true);
+    setSaved(false);
+    setProfileMessage("");
+    try {
+      const savedProfile = await onProfileSave({
+        companyName: companyName.trim() || profile.companyName,
+        gmailAlias: gmailAlias.trim()
+      });
+      setCompanyName(savedProfile.companyName);
+      setGmailAlias(savedProfile.gmailAlias);
+      setSaved(true);
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "Profile could not be saved.");
+    }
   }
   return /* @__PURE__ */ jsxs("section", { className: "page-stack profile-page", children: [
     /* @__PURE__ */ jsx("div", { className: "profile-page-heading", children: /* @__PURE__ */ jsxs("div", { children: [
       /* @__PURE__ */ jsx("h2", { children: "Profile" }),
       /* @__PURE__ */ jsx("span", { className: "status-pill", children: "\u2727\xA0 Auto-fill source" })
     ] }) }),
-    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Profile saved. Monthly Invoices will use these values automatically." }) : null,
+    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Profile saved to the database. All devices will use these values automatically." }) : null,
+    profileMessage ? /* @__PURE__ */ jsx("div", { className: "login-error", children: profileMessage }) : null,
     /* @__PURE__ */ jsxs("div", { className: "profile-editor-grid", children: [
       /* @__PURE__ */ jsxs("form", { className: "profile-editor-card", onSubmit: handleSaveProfile, children: [
         /* @__PURE__ */ jsxs("div", { className: "profile-card-heading", children: [

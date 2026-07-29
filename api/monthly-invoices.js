@@ -31,12 +31,16 @@ async function readStore() {
     ? "COALESCE(customer_number,'')"
     : "''";
   const phone = clientColumns.has("phone") ? "COALESCE(phone,'')" : "''";
+  const itemType = clientColumns.has("item_type") ? "COALESCE(item_type,'Service')" : "'Service'";
+  const itemName = clientColumns.has("item_name") ? "COALESCE(item_name,'Monthly service charge')" : "'Monthly service charge'";
+  const itemDescription = clientColumns.has("item_description") ? "COALESCE(item_description,'')" : "''";
   const activeOnly = clientColumns.has("archived_at")
     ? " AND archived_at IS NULL"
     : " AND status <> 'archived'";
   const [clients] = await db.execute(
     `SELECT LOWER(billing_email) id, id databaseId, ${customerNumber} customerNumber,
       customer_name name, billing_email email, ${phone} phone,
+      ${itemType} itemType, ${itemName} itemName, ${itemDescription} itemDescription,
       COALESCE(billing_address, '') address, invoice_number invoiceNumber,
       CAST(monthly_amount AS CHAR) amount, COALESCE(DATE_FORMAT(start_date, '%Y-%m-%d'), '') startDate,
       CAST(billing_day AS CHAR) billingDay, CAST(due_after_days AS CHAR) dueAfterDays,
@@ -59,38 +63,48 @@ async function upsertClient(client) {
   if (!email) throw Object.assign(new Error("Client email is required."), { status: 422 });
   await ensureCompany();
   const columns = await tableColumns("monthly_invoice_clients");
+  const hasInvoiceItems = columns.has("item_type") && columns.has("item_name") && columns.has("item_description");
+  const itemColumns = hasInvoiceItems ? ", item_type, item_name, item_description" : "";
+  const itemValues = hasInvoiceItems ? ", ?, ?, ?" : "";
+  const itemUpdates = hasInvoiceItems
+    ? ", item_type=VALUES(item_type), item_name=VALUES(item_name), item_description=VALUES(item_description)"
+    : "";
   if (columns.has("customer_number") && columns.has("phone")) {
     await database().execute(
       `INSERT INTO monthly_invoice_clients
         (company_id, customer_number, customer_name, billing_email, phone, billing_address, invoice_number, monthly_amount,
-         start_date, billing_day, due_after_days, last_sent_due_date, status, updated_at)
-       VALUES (1, NULLIF(?,''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+         start_date, billing_day, due_after_days, last_sent_due_date, status${itemColumns}, updated_at)
+       VALUES (1, NULLIF(?,''), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${itemValues}, NOW())
        ON DUPLICATE KEY UPDATE customer_name=VALUES(customer_name), billing_address=VALUES(billing_address),
          customer_number=COALESCE(VALUES(customer_number),customer_number), phone=VALUES(phone),
          invoice_number=VALUES(invoice_number), monthly_amount=VALUES(monthly_amount), start_date=VALUES(start_date),
          billing_day=VALUES(billing_day), due_after_days=VALUES(due_after_days),
-         last_sent_due_date=VALUES(last_sent_due_date), status=VALUES(status), updated_at=NOW()`,
+         last_sent_due_date=VALUES(last_sent_due_date), status=VALUES(status)${itemUpdates}, updated_at=NOW()`,
       [String(client.customerNumber || "").trim(), String(client.name || "Unnamed customer").trim(), email,
         String(client.phone || "").trim(), String(client.address || "").trim(),
         String(client.invoiceNumber || "").trim(), decimal(client.amount), dateValue(client.startDate),
         intValue(client.billingDay, 1, 1, 31), intValue(client.dueAfterDays, 14, 1, 90),
-        dateValue(client.lastSentDueDate), statusName(client.status).toLowerCase()]
+        dateValue(client.lastSentDueDate), statusName(client.status).toLowerCase(),
+        ...(hasInvoiceItems ? [String(client.itemType || "Service"), String(client.itemName || "Monthly service charge").trim(),
+          String(client.itemDescription || "").trim()] : [])]
     );
     return;
   }
   await database().execute(
     `INSERT INTO monthly_invoice_clients
       (company_id, customer_name, billing_email, billing_address, invoice_number, monthly_amount,
-       start_date, billing_day, due_after_days, last_sent_due_date, status, updated_at)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       start_date, billing_day, due_after_days, last_sent_due_date, status${itemColumns}, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?${itemValues}, NOW())
      ON DUPLICATE KEY UPDATE customer_name=VALUES(customer_name), billing_address=VALUES(billing_address),
        invoice_number=VALUES(invoice_number), monthly_amount=VALUES(monthly_amount), start_date=VALUES(start_date),
        billing_day=VALUES(billing_day), due_after_days=VALUES(due_after_days),
-       last_sent_due_date=VALUES(last_sent_due_date), status=VALUES(status), updated_at=NOW()`,
+       last_sent_due_date=VALUES(last_sent_due_date), status=VALUES(status)${itemUpdates}, updated_at=NOW()`,
     [String(client.name || "Unnamed customer").trim(), email, String(client.address || "").trim(),
       String(client.invoiceNumber || "").trim(), decimal(client.amount), dateValue(client.startDate),
       intValue(client.billingDay, 1, 1, 31), intValue(client.dueAfterDays, 14, 1, 90),
-      dateValue(client.lastSentDueDate), statusName(client.status).toLowerCase()]
+      dateValue(client.lastSentDueDate), statusName(client.status).toLowerCase(),
+      ...(hasInvoiceItems ? [String(client.itemType || "Service"), String(client.itemName || "Monthly service charge").trim(),
+        String(client.itemDescription || "").trim()] : [])]
   );
 }
 

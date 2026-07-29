@@ -31,6 +31,9 @@ function PrepareInvoicesPage({
   const [addressLocality, setAddressLocality] = useState("");
   const [addressPostalCode, setAddressPostalCode] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [itemType, setItemType] = useState("Service");
+  const [itemName, setItemName] = useState("");
+  const [itemDescription, setItemDescription] = useState("");
   const [subject, setSubject] = useState("Invoice {{invoice_number}} for {{billing_month}}");
   const [message, setMessage] = useState(
     "Hi {{customer_name}},\n\nAttached is your invoice {{invoice_number}} for {{billing_month}}. Payment is due on {{due_date}}.\n\nThank you,\n{{company_name}}"
@@ -91,6 +94,9 @@ function PrepareInvoicesPage({
       address: customerAddress.trim(),
       invoiceNumber: automaticInvoiceNumber,
       amount: invoiceAmount.trim() || "0.00",
+      itemType,
+      itemName: itemName.trim(),
+      itemDescription: itemDescription.trim(),
       startDate: cleanStartDate,
       billingDay,
       dueAfterDays: dueDays,
@@ -115,6 +121,9 @@ function PrepareInvoicesPage({
     setAddressLocality("");
     setAddressPostalCode("");
     setInvoiceAmount("");
+    setItemType("Service");
+    setItemName("");
+    setItemDescription("");
   }
   return /* @__PURE__ */ jsxs("section", { className: "page-stack monthly-invoices-page", children: [
     /* @__PURE__ */ jsx("div", { className: "page-heading", children: /* @__PURE__ */ jsxs("div", { className: "page-heading-with-back", children: [
@@ -208,6 +217,23 @@ function PrepareInvoicesPage({
             "Monthly amount",
             /* @__PURE__ */ jsx("input", { inputMode: "decimal", value: invoiceAmount, placeholder: "0.00", onChange: (event) => setInvoiceAmount(event.target.value), required: true })
           ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Item type",
+            /* @__PURE__ */ jsxs("select", { value: itemType, onChange: (event) => setItemType(event.target.value), children: [
+              /* @__PURE__ */ jsx("option", { value: "Service", children: "Service" }),
+              /* @__PURE__ */ jsx("option", { value: "Product", children: "Product" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Service or product",
+            /* @__PURE__ */ jsx("input", { value: itemName, placeholder: "e.g. Consultancy services", onChange: (event) => setItemName(event.target.value), required: true })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Description (optional)",
+          /* @__PURE__ */ jsx("textarea", { value: itemDescription, placeholder: "e.g. Monthly business consultancy and advisory support", rows: 3, onChange: (event) => setItemDescription(event.target.value) })
         ] }),
         /* @__PURE__ */ jsxs("fieldset", { className: "billing-address-fields", children: [
           /* @__PURE__ */ jsx("legend", { children: "Customer billing address" }),
@@ -344,6 +370,13 @@ function PrepareInvoicesPage({
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("dt", { children: "Billing address" }),
             /* @__PURE__ */ jsx("dd", { children: customerAddress.trim() || "No billing address entered" })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Service / product" }),
+            /* @__PURE__ */ jsxs("dd", { children: [
+              itemName.trim() || "No item entered",
+              itemDescription.trim() ? ` — ${itemDescription.trim()}` : ""
+            ] })
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("dt", { children: "Monthly amount" }),

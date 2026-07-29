@@ -28,6 +28,7 @@ const themeStorageKey = "ai-accountant-ceo-theme";
 const autoSendEnabledStorageKey = "ai-accountant-ceo-auto-send-enabled";
 const monthlyInvoicesEndpoint = "/api/monthly-invoices";
 const businessDateEndpoint = "/api/business-date";
+const businessProfileEndpoint = "/api/business-profile";
 const authEndpoint = "/api/auth";
 function formatDateInput(date = /* @__PURE__ */ new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -206,6 +207,18 @@ async function requestMonthlyInvoiceStore(payload) {
     payments: Array.isArray(result.payments) ? result.payments.filter(isInvoicePayment) : []
   };
 }
+async function requestBusinessProfile(profile) {
+  const response = await secureFetch(businessProfileEndpoint, profile ? {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile)
+  } : void 0);
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success || !result.profile) {
+    throw new Error(result.error || "Company profile request failed.");
+  }
+  return { ...defaultBusinessProfile, ...result.profile };
+}
 function App() {
   const [clients, setClients] = useState(() => loadMonthlyInvoiceClients());
   const [payments, setPayments] = useState(() => loadInvoicePayments());
@@ -257,6 +270,27 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(autoSendEnabledStorageKey, String(autoSendEnabled));
   }, [autoSendEnabled]);
+  useEffect(() => {
+    if (!authChecked || !session) {
+      return;
+    }
+    let cancelled = false;
+    requestBusinessProfile().then(async (databaseProfile) => {
+      const hasExistingLocalSender = profile.gmailAlias
+        && profile.gmailAlias !== defaultBusinessProfile.gmailAlias;
+      const resolvedProfile = !databaseProfile.gmailAlias && hasExistingLocalSender
+        ? await requestBusinessProfile(profile)
+        : databaseProfile;
+      if (!cancelled) setProfile(resolvedProfile);
+    }).catch((error) => {
+      if (!cancelled) {
+        setDatabaseNotice(`Company profile could not be loaded: ${error instanceof Error ? error.message : "Unknown database error."}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked, session]);
   useEffect(() => {
     if (!authChecked || !session) {
       return;
@@ -331,6 +365,12 @@ function App() {
       action: "upsert_client",
       client
     });
+  }
+  async function saveProfileToDatabase(nextProfile) {
+    const savedProfile = await requestBusinessProfile(nextProfile);
+    setProfile(savedProfile);
+    setDatabaseNotice("");
+    return savedProfile;
   }
   function deleteClientFromDatabase(clientId) {
     void refreshFromDatabase({
@@ -472,7 +512,7 @@ function App() {
             )
           }
         ),
-        /* @__PURE__ */ jsx(Route, { path: "/profile", element: /* @__PURE__ */ jsx(ProfilePage, { profile, setProfile, session, onLogout: handleLogout, onCredentialsChange: handleCredentialsChange }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/profile", element: /* @__PURE__ */ jsx(ProfilePage, { profile, onProfileSave: saveProfileToDatabase, session, onLogout: handleLogout, onCredentialsChange: handleCredentialsChange }) }),
         /* @__PURE__ */ jsx(
           Route,
           {
