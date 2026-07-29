@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { database, ensureInvoiceHistorySchema } from "../server/db.js";
 import { body, fail, json, requireSession } from "../server/security.js";
 
 function text(value, fallback = "") {
@@ -98,6 +99,24 @@ export default async function handler(req, res) {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.success === false) throw Object.assign(new Error(result.error || "Invoice delivery webhook failed."), { status: 502 });
+    await ensureInvoiceHistorySchema();
+    const email = text(invoice.to).toLowerCase();
+    const amount = Number(text(invoice.amount, "0").replace(/[^0-9.-]/g, "")) || 0;
+    const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(text(invoice.due_date_key)) ? text(invoice.due_date_key) : null;
+    const delivery = text(invoice.delivery, "Manual") === "Automatic" ? "Automatic" : "Manual";
+    const messageId = text(result.message_id) || null;
+    await database().execute(
+      `INSERT INTO invoice_send_history
+        (company_id,client_id,client_email,invoice_number,recipient,amount,due_date,delivery,message_id)
+       VALUES (1,(SELECT id FROM monthly_invoice_clients WHERE company_id=1 AND LOWER(billing_email)=? LIMIT 1),?,?,?,?,?,?,?)`,
+      [email, email, text(invoice.invoice_number), email, amount, dueDate, delivery, messageId]
+    );
+    await database().execute(
+      `UPDATE monthly_invoice_clients
+          SET last_sent_at=NOW(),last_sent_due_date=COALESCE(?,last_sent_due_date),status='sent',updated_at=NOW()
+        WHERE company_id=1 AND LOWER(billing_email)=?`,
+      [dueDate, email]
+    );
     return json(res, 200, { success: true, delivery: result.delivery || "webhook", message_id: result.message_id || null });
   } catch (error) {
     return fail(res, error);

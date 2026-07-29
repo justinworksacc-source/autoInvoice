@@ -47,6 +47,18 @@ export default async function handler(req, res) {
       if (userId === session.userId) throw Object.assign(new Error("You cannot delete your own logged-in account."), { status: 422 });
       const [result] = await database().execute("DELETE FROM auth_accounts WHERE id=?", [userId]);
       if (!result.affectedRows) throw Object.assign(new Error("User account was not found."), { status: 404 });
+    } else if (input.action === "bulk_disable" || input.action === "bulk_delete") {
+      const userIds = [...new Set((Array.isArray(input.user_ids) ? input.user_ids : []).map(Number))]
+        .filter((userId) => Number.isInteger(userId) && userId > 0)
+        .slice(0, 100);
+      if (!userIds.length) throw Object.assign(new Error("Select at least one user account."), { status: 422 });
+      if (userIds.includes(session.userId)) throw Object.assign(new Error("Your own logged-in account cannot be selected."), { status: 422 });
+      const placeholders = userIds.map(() => "?").join(",");
+      if (input.action === "bulk_disable") {
+        await database().execute(`UPDATE auth_accounts SET is_active=0 WHERE id IN (${placeholders})`, userIds);
+      } else {
+        await database().execute(`DELETE FROM auth_accounts WHERE id IN (${placeholders})`, userIds);
+      }
     } else throw Object.assign(new Error("Unknown user operation."), { status: 422 });
     return json(res, 200, { success: true, users: await listUsers() });
   } catch (error) {

@@ -9,6 +9,7 @@ function UsersPage({ session }) {
   const [form, setForm] = useState({ username: "", full_name: "", password: "", role: "staff" });
   const [notice, setNotice] = useState("");
   const [busyUserId, setBusyUserId] = useState(null);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
   async function request(payload?: Record<string, unknown>) {
     const response = await secureFetch(endpoint, payload ? {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
@@ -16,6 +17,7 @@ function UsersPage({ session }) {
     const result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || "User request failed.");
     setUsers(result.users);
+    setSelectedUserIds((selectedIds) => selectedIds.filter((userId) => result.users.some((user) => user.id === userId)));
   }
   useEffect(() => { request().catch((error) => setNotice(error.message)); }, []);
   async function create(event) {
@@ -39,15 +41,25 @@ function UsersPage({ session }) {
       setBusyUserId(null);
     }
   }
-  async function deleteUser(user) {
-    if (user.username === session.username) {
-      setNotice("You cannot delete your own logged-in account.");
-      return;
+  async function runBulkAction(action) {
+    if (!selectedUserIds.length) return;
+    const isDelete = action === "bulk_delete";
+    if (isDelete && !window.confirm(`Permanently delete ${selectedUserIds.length} selected account${selectedUserIds.length === 1 ? "" : "s"}? This cannot be undone.`)) return;
+    setBusyUserId("bulk");
+    try {
+      await request({ action, user_ids: selectedUserIds });
+      setSelectedUserIds([]);
+      setNotice(isDelete ? "Selected user accounts deleted." : "Selected user accounts disabled.");
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusyUserId(null);
     }
-    if (!window.confirm(`Permanently delete ${user.fullName || user.username}? This cannot be undone.`)) return;
-    await updateUser(user.id, { action: "delete" }, "User account deleted.");
   }
   if (session.role !== "admin") return null;
+  const selectableUsers = users.filter((user) => user.username !== session.username);
+  const allUsersSelected = selectableUsers.length > 0 && selectableUsers.every((user) => selectedUserIds.includes(user.id));
+  const bulkBusy = busyUserId === "bulk";
   return jsxs("section", { className: "page-stack users-page", children: [
     jsxs("div", { className: "page-heading", children: [jsxs("div", { children: [jsx("p", { className: "eyebrow", children: "Access control" }), jsx("h2", { children: "Users & Roles" }), jsx("p", { children: "Create separate accounts and grant only the access each person needs." })] }), jsx("span", { className: "status-pill", children: "Administrator only" })] }),
     notice ? jsx("div", { className: /created|updated|deleted|enabled|disabled/i.test(notice) ? "saved-banner" : "database-banner error", children: notice }) : null,
@@ -71,10 +83,21 @@ function UsersPage({ session }) {
           ] }),
           jsx("span", { className: "status-pill", children: `${users.length} account${users.length === 1 ? "" : "s"}` })
         ] }),
+        jsxs("div", { className: "user-bulk-toolbar", children: [
+          jsxs("label", { className: "user-select-all", children: [
+            jsx("input", { type: "checkbox", checked: allUsersSelected, disabled: !selectableUsers.length || bulkBusy, onChange: (event) => setSelectedUserIds(event.target.checked ? selectableUsers.map((user) => user.id) : []) }),
+            jsx("span", { children: selectedUserIds.length ? `${selectedUserIds.length} selected` : "Select all users" })
+          ] }),
+          jsxs("div", { className: "user-bulk-actions", children: [
+            jsx("button", { type: "button", className: "secondary-button", disabled: !selectedUserIds.length || bulkBusy, onClick: () => void runBulkAction("bulk_disable"), children: bulkBusy ? "Working\u2026" : "Disable selected" }),
+            jsx("button", { type: "button", className: "danger-button", disabled: !selectedUserIds.length || bulkBusy, onClick: () => void runBulkAction("bulk_delete"), children: bulkBusy ? "Working\u2026" : "Delete selected" })
+          ] })
+        ] }),
         jsx("div", { className: "user-list", children: users.map((user) => {
           const isCurrentUser = user.username === session.username;
           const isBusy = busyUserId === user.id;
           return jsxs("div", { className: "user-card", children: [
+            jsx("input", { className: "user-select-checkbox", type: "checkbox", checked: selectedUserIds.includes(user.id), disabled: isCurrentUser || bulkBusy, "aria-label": isCurrentUser ? "Current account cannot be selected" : `Select ${user.fullName || user.username}`, onChange: (event) => setSelectedUserIds((selectedIds) => event.target.checked ? [...selectedIds, user.id] : selectedIds.filter((userId) => userId !== user.id)) }),
             jsxs("div", { className: "user-identity", children: [
               jsx("span", { className: "user-avatar", "aria-hidden": "true", children: (user.fullName || user.username).trim().charAt(0).toUpperCase() }),
               jsxs("span", { children: [
@@ -90,11 +113,7 @@ function UsersPage({ session }) {
                 jsx("option", { value: "admin", children: "Administrator" })
               ] })
             ] }),
-            jsx("span", { className: `send-status ${user.isActive ? "sent" : "draft"}`, children: user.isActive ? "Active" : "Disabled" }),
-            jsxs("div", { className: "user-actions", children: [
-              jsx("button", { type: "button", className: "secondary-button", disabled: isBusy || isCurrentUser, title: isCurrentUser ? "You cannot disable your own account." : "", onClick: () => void updateUser(user.id, { action: "set_active", is_active: !user.isActive }, `User account ${user.isActive ? "disabled" : "enabled"}.`), children: user.isActive ? "Disable" : "Enable" }),
-              jsx("button", { type: "button", className: "danger-button", disabled: isBusy || isCurrentUser, title: isCurrentUser ? "You cannot delete your own account." : "", onClick: () => void deleteUser(user), children: isBusy ? "Working\u2026" : "Delete" })
-            ] })
+            jsx("span", { className: `send-status ${user.isActive ? "sent" : "draft"}`, children: user.isActive ? "Active" : "Disabled" })
           ] }, user.id);
         }) })
       ] })

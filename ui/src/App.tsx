@@ -212,7 +212,8 @@ async function requestMonthlyInvoiceStore(payload?: Record<string, unknown>) {
       : [],
     payments: Array.isArray(result.payments)
       ? result.payments.filter(isInvoicePayment).filter((payment) => payment.clientId.toLowerCase() !== legacySampleClientId)
-      : []
+      : [],
+    invoiceHistory: Array.isArray(result.invoiceHistory) ? result.invoiceHistory : []
   };
 }
 async function requestBusinessProfile(profile?: { companyName: string; gmailAlias: string }) {
@@ -354,6 +355,9 @@ function App() {
         if (cancelled) {
           return;
         }
+        if (databaseState.invoiceHistory.length > 0) {
+          setInvoiceHistory(databaseState.invoiceHistory);
+        }
         if (databaseState.clients.length > 0 || databaseState.payments.length > 0) {
           setClients(databaseState.clients);
           setPayments(databaseState.payments);
@@ -388,6 +392,7 @@ function App() {
       const databaseState = await requestMonthlyInvoiceStore(payload);
       setClients(databaseState.clients);
       setPayments(databaseState.payments);
+      setInvoiceHistory(databaseState.invoiceHistory);
       setDatabaseNotice("");
     } catch (error) {
       setDatabaseNotice(`MariaDB save failed: ${error instanceof Error ? error.message : "Unknown database error."}`);

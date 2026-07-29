@@ -1,5 +1,6 @@
 import {
   formatAmount,
+  formatDateInput,
   formatDueDate,
   getClientCycleStartDate,
   getClientPaymentSummary,
@@ -28,7 +29,7 @@ export function saveAutoSendAttemptKeys(keys) {
 export function getAutoSendAttemptKey(client, dueDate) {
   return `${client.id}:${dueDate}`;
 }
-export async function sendInvoiceForClient(client, profile, referenceDate = /* @__PURE__ */ new Date(), payments = []) {
+export async function sendInvoiceForClient(client, profile, referenceDate = /* @__PURE__ */ new Date(), payments = [], delivery = "Manual") {
   const dueDate = getNextDueDate(client, referenceDate);
   const cycleStartDate = getClientCycleStartDate(client, referenceDate);
   const invoiceNumber = getCycleInvoiceNumber(client, cycleStartDate);
@@ -53,6 +54,8 @@ export async function sendInvoiceForClient(client, profile, referenceDate = /* @
       amount: formatAmount(invoiceAmount),
       billing_day: client.billingDay,
       due_date: formatDueDate(dueDate),
+      due_date_key: formatDateInput(dueDate),
+      delivery,
       subject: `Invoice ${invoiceNumber} from ${profile.companyName}`,
       body: `Hi ${client.name},
 

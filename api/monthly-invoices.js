@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { database, ensureCompany } from "../server/db.js";
+import { database, ensureCompany, ensureInvoiceHistorySchema } from "../server/db.js";
 import { body, fail, json, requireSession } from "../server/security.js";
 
 const statusName = (value) => {
@@ -25,6 +25,7 @@ async function tableColumns(table) {
 
 async function readStore() {
   await ensureCompany();
+  await ensureInvoiceHistorySchema();
   const db = database();
   const clientColumns = await tableColumns("monthly_invoice_clients");
   const customerNumber = clientColumns.has("customer_number")
@@ -55,7 +56,13 @@ async function readStore() {
       DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ') createdAt
      FROM monthly_invoice_payments WHERE company_id = 1 ORDER BY payment_date, id`
   );
-  return { clients: clients.map((client) => ({ ...client, status: statusName(client.status) })), payments };
+  const [invoiceHistory] = await db.execute(
+    `SELECT CONCAT('db-', id) id, LOWER(client_email) clientId, invoice_number invoiceNumber,
+      recipient, CAST(amount AS CHAR) amount, COALESCE(DATE_FORMAT(due_date,'%Y-%m-%d'),'') dueDate,
+      DATE_FORMAT(sent_at,'%Y-%m-%dT%H:%i:%sZ') sentAt, delivery
+     FROM invoice_send_history WHERE company_id=1 ORDER BY sent_at DESC,id DESC LIMIT 500`
+  );
+  return { clients: clients.map((client) => ({ ...client, status: statusName(client.status) })), payments, invoiceHistory };
 }
 
 async function upsertClient(client) {

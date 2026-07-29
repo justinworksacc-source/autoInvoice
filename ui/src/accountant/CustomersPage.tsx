@@ -215,7 +215,7 @@ function CustomersPage({
       let sentCount = 0;
       for (const { client, dueDateKey } of dueTodayClients) {
         try {
-          await sendInvoiceForClient(client, profile, currentBusinessDate, payments);
+          await sendInvoiceForClient(client, profile, currentBusinessDate, payments, "Automatic");
           if (cancelled) {
             return;
           }

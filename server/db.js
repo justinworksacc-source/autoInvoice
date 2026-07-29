@@ -45,6 +45,38 @@ export async function ensureCompany() {
   );
 }
 
+let invoiceHistorySchemaPromise;
+
+export async function ensureInvoiceHistorySchema() {
+  if (!invoiceHistorySchemaPromise) {
+    invoiceHistorySchemaPromise = (async () => {
+      const db = database();
+      await ensureCompany();
+      await db.execute(
+        `CREATE TABLE IF NOT EXISTS invoice_send_history (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          company_id BIGINT NOT NULL,
+          client_id BIGINT NULL,
+          client_email VARCHAR(255) NOT NULL,
+          invoice_number VARCHAR(100) NOT NULL,
+          recipient VARCHAR(255) NOT NULL,
+          amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          due_date DATE NULL,
+          delivery VARCHAR(30) NOT NULL DEFAULT 'Manual',
+          message_id VARCHAR(255) NULL,
+          sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX invoice_send_history_company_sent_idx (company_id, sent_at),
+          INDEX invoice_send_history_client_idx (client_id)
+        )`
+      );
+    })().catch((error) => {
+      invoiceHistorySchemaPromise = undefined;
+      throw error;
+    });
+  }
+  return invoiceHistorySchemaPromise;
+}
+
 let authSchemaPromise;
 
 export async function ensureAuthSchema() {
