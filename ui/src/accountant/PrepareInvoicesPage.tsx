@@ -349,43 +349,6 @@ function PrepareInvoicesPage({
           /* @__PURE__ */ jsx("legend", { children: "Customer billing address" }),
           /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
             /* @__PURE__ */ jsxs("label", { children: [
-              "Block / Lot / House No.",
-              /* @__PURE__ */ jsx("input", { value: addressHouse, placeholder: "e.g. Block 3, Lot 9", onChange: (event) => {
-                setAddressHouse(event.target.value);
-                updateComposedAddress({ house: event.target.value });
-              } })
-            ] }),
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Street",
-              /* @__PURE__ */ jsx("input", { value: addressStreet, placeholder: "e.g. Bergamo Street", onChange: (event) => {
-                setAddressStreet(event.target.value);
-                updateComposedAddress({ street: event.target.value });
-              } })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Subdivision / Village",
-              /* @__PURE__ */ jsx("input", { value: addressSubdivision, placeholder: "e.g. Camella Homes", onChange: (event) => {
-                setAddressSubdivision(event.target.value);
-                updateComposedAddress({ subdivision: event.target.value });
-              } })
-            ] }),
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Barangay",
-              /* @__PURE__ */ jsxs("select", { value: addressBarangay, disabled: !addressLocality, onChange: (event) => {
-                const barangay = event.target.value;
-                setAddressBarangay(barangay);
-                setAddressPostalCode("");
-                updateComposedAddress({ barangay, post_code: "" });
-              }, children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Choose barangay" }),
-                addressBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay, children: barangay }, barangay))
-              ] })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-            /* @__PURE__ */ jsxs("label", { children: [
               "Region ",
               /* @__PURE__ */ jsx("span", { className: "sr-only", children: "used to filter provinces" }),
               /* @__PURE__ */ jsxs("select", { value: addressRegion, onChange: (event) => {
@@ -431,8 +394,22 @@ function PrepareInvoicesPage({
               ] })
             ] }),
             /* @__PURE__ */ jsxs("label", { children: [
+              "Barangay",
+              /* @__PURE__ */ jsxs("select", { value: addressBarangay, disabled: !addressLocality, onChange: (event) => {
+                const barangay = event.target.value;
+                setAddressBarangay(barangay);
+                setAddressPostalCode("");
+                updateComposedAddress({ barangay, post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Choose barangay" }),
+                addressBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay, children: barangay }, barangay))
+              ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
               "Postal code",
-              /* @__PURE__ */ jsxs("select", { value: addressPostalCode, disabled: !addressMunicipality, onChange: (event) => {
+              /* @__PURE__ */ jsxs("select", { value: addressPostalCode, disabled: !addressBarangay, onChange: (event) => {
                 const postCode = event.target.value;
                 setAddressPostalCode(postCode);
                 updateComposedAddress({ post_code: postCode });
@@ -440,11 +417,34 @@ function PrepareInvoicesPage({
                 /* @__PURE__ */ jsx("option", { value: "", children: "Choose postal code" }),
                 addressPostalCodes.map((postCode) => /* @__PURE__ */ jsx("option", { value: postCode, children: postCode }, postCode))
               ] })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Country",
+              /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: "Philippines" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Block / Lot / House No.",
+              /* @__PURE__ */ jsx("input", { value: addressHouse, placeholder: "e.g. Block 3, Lot 9", onChange: (event) => {
+                setAddressHouse(event.target.value);
+                updateComposedAddress({ house: event.target.value });
+              } })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Street",
+              /* @__PURE__ */ jsx("input", { value: addressStreet, placeholder: "e.g. Bergamo Street", onChange: (event) => {
+                setAddressStreet(event.target.value);
+                updateComposedAddress({ street: event.target.value });
+              } })
             ] })
           ] }),
           /* @__PURE__ */ jsxs("label", { children: [
-            "Country",
-            /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: "Philippines" })
+            "Subdivision / Village",
+            /* @__PURE__ */ jsx("input", { value: addressSubdivision, placeholder: "e.g. Camella Homes", onChange: (event) => {
+              setAddressSubdivision(event.target.value);
+              updateComposedAddress({ subdivision: event.target.value });
+            } })
           ] }),
           /* @__PURE__ */ jsxs("p", { children: [
             /* @__PURE__ */ jsx("strong", { children: "Complete address:" }),
