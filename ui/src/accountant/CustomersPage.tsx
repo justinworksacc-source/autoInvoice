@@ -23,8 +23,8 @@ import {
 import { AUTO_SEND_LEAD_DAYS, getAutoSendAttemptKey, loadAutoSendAttemptKeys, saveAutoSendAttemptKeys, sendInvoiceForClient } from "./invoiceService";
 import { secureFetch } from "../apiSecurity";
 const customerPostalPlaces = usePostalPH().fetchDataLists().data;
-function uniqueAddressValues(values) {
-  return [...new Set(values.filter((value) => value !== void 0 && value !== ""))].sort((left, right) => String(left).localeCompare(String(right)));
+function uniqueAddressValues(values: unknown[]): string[] {
+  return [...new Set(values.filter((value) => value !== void 0 && value !== "").map(String))].sort((left, right) => left.localeCompare(right));
 }
 function getNameInitials(name) {
   const words = name.trim().split(/\s+/).filter(Boolean);

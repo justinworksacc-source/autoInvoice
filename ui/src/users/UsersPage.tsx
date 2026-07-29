@@ -8,7 +8,7 @@ function UsersPage({ session }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ username: "", full_name: "", password: "", role: "staff" });
   const [notice, setNotice] = useState("");
-  async function request(payload) {
+  async function request(payload?: Record<string, unknown>) {
     const response = await secureFetch(endpoint, payload ? {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
     } : undefined);

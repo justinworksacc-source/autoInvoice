@@ -4,8 +4,8 @@ import { Link } from "react-router-dom";
 import usePostalPH from "use-postal-ph";
 import { clampNumber, formatDueDate, isDateInput, parseDateInput } from "../shared";
 const philippinePostalPlaces = usePostalPH().fetchDataLists().data;
-function uniqueValues(values) {
-  return [...new Set(values.filter((value) => value !== void 0 && value !== ""))].sort((left, right) => String(left).localeCompare(String(right)));
+function uniqueValues(values: unknown[]): string[] {
+  return [...new Set(values.filter((value) => value !== void 0 && value !== "").map(String))].sort((left, right) => left.localeCompare(right));
 }
 function PrepareInvoicesPage({
   clients,

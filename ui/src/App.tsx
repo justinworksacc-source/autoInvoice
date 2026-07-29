@@ -106,7 +106,7 @@ function loadAutoSendEnabled() {
     return true;
   }
 }
-async function requestBusinessDate(payload) {
+async function requestBusinessDate(payload?: Record<string, unknown>) {
   const response = await secureFetch(businessDateEndpoint, payload ? {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -192,7 +192,7 @@ function loadInvoiceHistory() {
     return [];
   }
 }
-async function requestMonthlyInvoiceStore(payload) {
+async function requestMonthlyInvoiceStore(payload?: Record<string, unknown>) {
   const response = await secureFetch(monthlyInvoicesEndpoint, {
     method: payload ? "POST" : "GET",
     headers: payload ? { "Content-Type": "application/json" } : void 0,
@@ -207,7 +207,7 @@ async function requestMonthlyInvoiceStore(payload) {
     payments: Array.isArray(result.payments) ? result.payments.filter(isInvoicePayment) : []
   };
 }
-async function requestBusinessProfile(profile) {
+async function requestBusinessProfile(profile?: { companyName: string; gmailAlias: string }) {
   const response = await secureFetch(businessProfileEndpoint, profile ? {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -438,7 +438,7 @@ function App() {
   }
   function handleLogout() {
     void secureFetch(authEndpoint, { method: "DELETE" });
-    saveCsrfToken();
+    saveCsrfToken(undefined);
     window.localStorage.removeItem(authStorageKey);
     setSession(null);
   }
