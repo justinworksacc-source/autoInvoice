@@ -1,10 +1,10 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, NavLink, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import DashboardPage from "./dashboard/DashboardPage";
 import LoginPage from "./auth/LoginPage";
 import { saveCsrfToken, secureFetch } from "./apiSecurity";
-import { clampNumber } from "./shared";
+import { clampNumber, formatAmount, formatDueDate, getClientPaymentSummary } from "./shared";
 const AccountantPage = lazy(() => import("./accountant/AccountantPage"));
 const CustomersPage = lazy(() => import("./accountant/CustomersPage"));
 const PrepareInvoicesPage = lazy(() => import("./accountant/PrepareInvoicesPage"));
@@ -231,6 +231,29 @@ function App() {
   const [theme, setTheme] = useState(() => loadTheme());
   const [autoSendEnabled, setAutoSendEnabled] = useState(() => loadAutoSendEnabled());
   const [databaseNotice, setDatabaseNotice] = useState("");
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const overdueReminders = useMemo(() => {
+    const referenceDate = parseDateInput(businessDate);
+    return clients.flatMap((client) => {
+      const summary = getClientPaymentSummary(client, payments, referenceDate);
+      const overdueInvoices = summary.invoices
+        .map((invoice) => ({
+          ...invoice,
+          overdueDays: Math.floor((referenceDate.getTime() - invoice.dueDate.getTime()) / 864e5)
+        }))
+        .filter((invoice) => invoice.balanceDue > 0 && invoice.overdueDays >= 7)
+        .sort((first, second) => second.overdueDays - first.overdueDays);
+      if (!overdueInvoices.length) return [];
+      return [{
+        clientId: client.id,
+        customerName: client.name,
+        invoiceNumber: overdueInvoices[0].invoiceNumber,
+        dueDate: overdueInvoices[0].dueDate,
+        overdueDays: overdueInvoices[0].overdueDays,
+        balanceDue: summary.balanceDue
+      }];
+    }).sort((first, second) => second.overdueDays - first.overdueDays);
+  }, [businessDate, clients, payments]);
   useEffect(() => {
     secureFetch(authEndpoint).then(async (response) => {
       const result = await response.json();
@@ -487,6 +510,44 @@ function App() {
       ] })
     ] }),
     /* @__PURE__ */ jsxs("main", { className: "content", children: [
+      /* @__PURE__ */ jsxs("div", { className: "workspace-topbar", children: [
+        /* @__PURE__ */ jsx("span", { className: "workspace-topbar-label", children: "Billing workspace" }),
+        /* @__PURE__ */ jsxs("div", { className: "reminder-menu", children: [
+          /* @__PURE__ */ jsxs("button", { type: "button", className: `reminder-button ${overdueReminders.length ? "has-reminders" : ""}`, onClick: () => setRemindersOpen((open) => !open), "aria-expanded": remindersOpen, "aria-label": overdueReminders.length ? `${overdueReminders.length} overdue customer reminders` : "No overdue customer reminders", children: [
+            /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" }) }),
+            overdueReminders.length ? /* @__PURE__ */ jsx("span", { className: "reminder-count", children: overdueReminders.length > 99 ? "99+" : overdueReminders.length }) : null
+          ] }),
+          remindersOpen ? /* @__PURE__ */ jsxs("div", { className: "reminder-popover", children: [
+            /* @__PURE__ */ jsxs("div", { className: "reminder-popover-heading", children: [
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("strong", { children: "Payment reminders" }),
+                /* @__PURE__ */ jsx("small", { children: "Customers at least 7 days overdue" })
+              ] }),
+              /* @__PURE__ */ jsx("span", { children: overdueReminders.length })
+            ] }),
+            overdueReminders.length ? /* @__PURE__ */ jsx("div", { className: "reminder-list", children: overdueReminders.map((reminder) => /* @__PURE__ */ jsxs(Link, { to: "/customers", onClick: () => setRemindersOpen(false), children: [
+              /* @__PURE__ */ jsx("span", { className: "reminder-alert-icon", "aria-hidden": "true", children: "!" }),
+              /* @__PURE__ */ jsxs("div", { children: [
+                /* @__PURE__ */ jsx("strong", { children: reminder.customerName }),
+                /* @__PURE__ */ jsxs("small", { children: [
+                  reminder.invoiceNumber,
+                  " \xB7 Due ",
+                  formatDueDate(reminder.dueDate)
+                ] }),
+                /* @__PURE__ */ jsxs("span", { children: [
+                  reminder.overdueDays,
+                  " days overdue \xB7 ",
+                  formatAmount(reminder.balanceDue)
+                ] })
+              ] })
+            ] }, reminder.clientId)) }) : /* @__PURE__ */ jsxs("div", { className: "reminder-empty", children: [
+              /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u2713" }),
+              /* @__PURE__ */ jsx("strong", { children: "No overdue reminders" }),
+              /* @__PURE__ */ jsx("p", { children: "Customers will appear here after they are 7 days past due." })
+            ] })
+          ] }) : null
+        ] })
+      ] }),
       databaseNotice ? /* @__PURE__ */ jsx("div", { className: `database-banner ${databaseNotice.includes("failed") || databaseNotice.includes("not connected") ? "error" : ""}`, children: databaseNotice }) : null,
       /* @__PURE__ */ jsxs(Routes, { children: [
         /* @__PURE__ */ jsx(Route, { path: "/", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory }) }),
