@@ -86,7 +86,15 @@ function PrepareInvoicesPage({
   const addressMunicipalities = uniqueValues(municipalityPlaces.map((place) => place.municipality));
   const localityPlaces = municipalityPlaces.filter((place) => place.municipality === addressMunicipality);
   const addressLocalities = uniqueValues(localityPlaces.map((place) => place.location));
-  const postalPlaces = localityPlaces.filter((place) => !addressLocality || place.location === addressLocality);
+  const barangayPlaces = philippinePostalPlaces.filter((place) =>
+    place.region === addressRegion
+    && (!addressLocality || place.location === addressLocality)
+  );
+  const addressBarangays = uniqueValues(barangayPlaces.map((place) => place.municipality));
+  const postalPlaces = localityPlaces.filter((place) =>
+    (!addressLocality || place.location === addressLocality)
+    && (!addressBarangay || place.municipality === addressBarangay)
+  );
   const addressPostalCodes = uniqueValues(postalPlaces.map((place) => place.post_code));
   function updateComposedAddress(next) {
     const house = String(next.house ?? addressHouse);
@@ -365,10 +373,15 @@ function PrepareInvoicesPage({
             ] }),
             /* @__PURE__ */ jsxs("label", { children: [
               "Barangay",
-              /* @__PURE__ */ jsx("input", { value: addressBarangay, placeholder: "e.g. Cantil-e", onChange: (event) => {
-                setAddressBarangay(event.target.value);
-                updateComposedAddress({ barangay: event.target.value });
-              } })
+              /* @__PURE__ */ jsxs("select", { value: addressBarangay, disabled: !addressLocality, onChange: (event) => {
+                const barangay = event.target.value;
+                setAddressBarangay(barangay);
+                setAddressPostalCode("");
+                updateComposedAddress({ barangay, post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Choose barangay" }),
+                addressBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay, children: barangay }, barangay))
+              ] })
             ] })
           ] }),
           /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
@@ -380,8 +393,9 @@ function PrepareInvoicesPage({
                 setAddressRegion(region);
                 setAddressMunicipality("");
                 setAddressLocality("");
+                setAddressBarangay("");
                 setAddressPostalCode("");
-                updateComposedAddress({ region, municipality: "", location: "", post_code: "" });
+                updateComposedAddress({ region, municipality: "", location: "", barangay: "", post_code: "" });
               }, children: [
                 /* @__PURE__ */ jsx("option", { value: "", children: "Choose region" }),
                 addressRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region, children: region }, region))
@@ -393,8 +407,9 @@ function PrepareInvoicesPage({
                 const municipality = event.target.value;
                 setAddressMunicipality(municipality);
                 setAddressLocality("");
+                setAddressBarangay("");
                 setAddressPostalCode("");
-                updateComposedAddress({ municipality, location: "", post_code: "" });
+                updateComposedAddress({ municipality, location: "", barangay: "", post_code: "" });
               }, children: [
                 /* @__PURE__ */ jsx("option", { value: "", children: "Choose province" }),
                 addressMunicipalities.map((municipality) => /* @__PURE__ */ jsx("option", { value: municipality, children: municipality }, municipality))
@@ -407,8 +422,9 @@ function PrepareInvoicesPage({
               /* @__PURE__ */ jsxs("select", { value: addressLocality, disabled: !addressMunicipality, onChange: (event) => {
                 const location = event.target.value;
                 setAddressLocality(location);
+                setAddressBarangay("");
                 setAddressPostalCode("");
-                updateComposedAddress({ location, post_code: "" });
+                updateComposedAddress({ location, barangay: "", post_code: "" });
               }, children: [
                 /* @__PURE__ */ jsx("option", { value: "", children: "Choose city / municipality" }),
                 addressLocalities.map((locality) => /* @__PURE__ */ jsx("option", { value: locality, children: locality }, locality))

@@ -489,9 +489,9 @@ function App() {
     return /* @__PURE__ */ jsx(LoginPage, { onLogin: handleLogin });
   }
   if (!profileLoaded || !billingLoaded) {
-    return /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading your billing workspace\u2026" });
+    return null;
   }
-  return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading workspace\u2026" }), children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
+  return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
     /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
       /* @__PURE__ */ jsxs("div", { className: "brand-block", children: [
         /* @__PURE__ */ jsx("img", { src: "/logo.png", alt: "Visual Security Systems logo", className: "brand-logo" }),
