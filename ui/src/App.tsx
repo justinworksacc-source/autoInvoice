@@ -24,7 +24,7 @@ const CustomerPortalPage = lazy(() => import("./portal/CustomerPortalPage"));
 const UsersPage = lazy(() => import("./users/UsersPage"));
 const defaultBusinessProfile = {
   companyName: "Visual Security Systems",
-  gmailAlias: "billing@yourcompany.com"
+  gmailAlias: ""
 };
 const profileStorageKey = "ai-accountant-ceo-profile";
 const authStorageKey = "ai-accountant-ceo-session";
@@ -39,6 +39,7 @@ const monthlyInvoicesEndpoint = "/api/monthly-invoices";
 const businessDateEndpoint = "/api/business-date";
 const businessProfileEndpoint = "/api/business-profile";
 const authEndpoint = "/api/auth";
+const legacySampleClientId = "customer@example.com";
 function formatDateInput(date = /* @__PURE__ */ new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Manila",
@@ -127,20 +128,7 @@ async function requestBusinessDate(payload?: Record<string, unknown>) {
   }
   return { businessDate: result.business_date, businessTime: result.business_time || "08:00" };
 }
-const initialMonthlyInvoiceClients = [
-  {
-    id: "customer@example.com",
-    name: "Customer Name",
-    email: "customer@example.com",
-    invoiceNumber: "INV-202607-001",
-    amount: "1500.00",
-    startDate: formatDateInput(),
-    billingDay: "1",
-    dueAfterDays: "14",
-    lastSent: "Not sent yet",
-    status: "Scheduled"
-  }
-];
+const initialMonthlyInvoiceClients = [];
 function isMonthlyInvoiceClient(value) {
   if (!value || typeof value !== "object") {
     return false;
@@ -148,6 +136,11 @@ function isMonthlyInvoiceClient(value) {
   const client = value;
   const validStatuses = ["Scheduled", "Draft", "Sent", "Needs approval"];
   return typeof client.id === "string" && typeof client.name === "string" && typeof client.email === "string" && (client.address === void 0 || typeof client.address === "string") && typeof client.invoiceNumber === "string" && typeof client.amount === "string" && (client.startDate === void 0 || typeof client.startDate === "string") && typeof client.billingDay === "string" && (client.dueAfterDays === void 0 || typeof client.dueAfterDays === "string") && typeof client.lastSent === "string" && (client.lastSentDueDate === void 0 || typeof client.lastSentDueDate === "string") && validStatuses.includes(client.status);
+}
+function isLegacySampleClient(client) {
+  return client.id.toLowerCase() === legacySampleClientId
+    && client.email.toLowerCase() === legacySampleClientId
+    && client.name === "Customer Name";
 }
 function loadMonthlyInvoiceClients() {
   try {
@@ -159,7 +152,7 @@ function loadMonthlyInvoiceClients() {
     if (!Array.isArray(parsedClients) || !parsedClients.every(isMonthlyInvoiceClient)) {
       return initialMonthlyInvoiceClients;
     }
-    return parsedClients.map((client) => {
+    return parsedClients.filter((client) => !isLegacySampleClient(client)).map((client) => {
       const startDate = client.startDate && isDateInput(client.startDate) ? client.startDate : formatDateInput();
       const startDay = String(clampNumber(String(parseDateInput(startDate).getDate()), 1, 1, 31));
       return {
@@ -187,7 +180,9 @@ function loadInvoicePayments() {
       return [];
     }
     const parsedPayments = JSON.parse(savedPayments);
-    return Array.isArray(parsedPayments) && parsedPayments.every(isInvoicePayment) ? parsedPayments : [];
+    return Array.isArray(parsedPayments) && parsedPayments.every(isInvoicePayment)
+      ? parsedPayments.filter((payment) => payment.clientId.toLowerCase() !== legacySampleClientId)
+      : [];
   } catch {
     return [];
   }
@@ -212,8 +207,12 @@ async function requestMonthlyInvoiceStore(payload?: Record<string, unknown>) {
     throw new Error(result.error || "MariaDB monthly invoice request failed.");
   }
   return {
-    clients: Array.isArray(result.clients) ? result.clients.filter(isMonthlyInvoiceClient) : [],
-    payments: Array.isArray(result.payments) ? result.payments.filter(isInvoicePayment) : []
+    clients: Array.isArray(result.clients)
+      ? result.clients.filter(isMonthlyInvoiceClient).filter((client) => !isLegacySampleClient(client))
+      : [],
+    payments: Array.isArray(result.payments)
+      ? result.payments.filter(isInvoicePayment).filter((payment) => payment.clientId.toLowerCase() !== legacySampleClientId)
+      : []
   };
 }
 async function requestBusinessProfile(profile?: { companyName: string; gmailAlias: string }) {
@@ -241,6 +240,8 @@ function App() {
   const [autoSendEnabled, setAutoSendEnabled] = useState(() => loadAutoSendEnabled());
   const [databaseNotice, setDatabaseNotice] = useState("");
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [billingLoaded, setBillingLoaded] = useState(false);
   const upcomingReminders = useMemo(() => {
     const referenceDate = parseDateInput(businessDate);
     return clients.flatMap((client) => {
@@ -314,6 +315,8 @@ function App() {
       if (!cancelled) {
         setDatabaseNotice(`Company profile could not be loaded: ${error instanceof Error ? error.message : "Unknown database error."}`);
       }
+    }).finally(() => {
+      if (!cancelled) setProfileLoaded(true);
     });
     return () => {
       cancelled = true;
@@ -371,6 +374,8 @@ function App() {
         if (!cancelled) {
           setDatabaseNotice(`MariaDB not connected: ${error instanceof Error ? error.message : "Unknown database error."}`);
         }
+      } finally {
+        if (!cancelled) setBillingLoaded(true);
       }
     }
     void loadDatabaseState();
@@ -438,6 +443,8 @@ function App() {
       const nextSession = { email: result.user.username, username: result.user.username, role: result.user.role || "admin", signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
       window.localStorage.setItem(authStorageKey, JSON.stringify(nextSession));
       window.history.replaceState(null, "", "/");
+      setProfileLoaded(false);
+      setBillingLoaded(false);
       setSession(nextSession);
       return null;
     } catch {
@@ -468,16 +475,21 @@ function App() {
     void secureFetch(authEndpoint, { method: "DELETE" });
     saveCsrfToken(undefined);
     window.localStorage.removeItem(authStorageKey);
+    setProfileLoaded(false);
+    setBillingLoaded(false);
     setSession(null);
   }
   if (!authChecked) {
-    return null;
+    return /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Checking your session\u2026" });
   }
   if (window.location.pathname === "/portal") {
     return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("main", { className: "portal-shell", children: "Loading billing portal\u2026" }), children: /* @__PURE__ */ jsx(CustomerPortalPage, {}) });
   }
   if (!session) {
     return /* @__PURE__ */ jsx(LoginPage, { onLogin: handleLogin });
+  }
+  if (!profileLoaded || !billingLoaded) {
+    return /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading your billing workspace\u2026" });
   }
   return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading workspace\u2026" }), children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
     /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [

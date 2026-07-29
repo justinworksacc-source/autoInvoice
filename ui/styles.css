@@ -477,10 +477,10 @@ a {
 }
 
 .account-links .reminder-popover {
-  bottom: calc(100% + 0.65rem);
-  left: 0;
-  right: auto;
-  top: auto;
+  bottom: auto;
+  left: auto;
+  right: 0;
+  top: calc(100% + 0.65rem);
 }
 
 .reminder-popover-heading {
