@@ -241,6 +241,7 @@ function App() {
   const [autoSendEnabled, setAutoSendEnabled] = useState(() => loadAutoSendEnabled());
   const [databaseNotice, setDatabaseNotice] = useState("");
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [billingLoaded, setBillingLoaded] = useState(false);
   const upcomingReminders = useMemo(() => {
@@ -497,16 +498,21 @@ function App() {
     return null;
   }
   return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
-    /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
+    /* @__PURE__ */ jsxs("aside", { className: `sidebar ${mobileNavOpen ? "mobile-open" : ""}`, children: [
       /* @__PURE__ */ jsxs("div", { className: "brand-block", children: [
         /* @__PURE__ */ jsx("img", { src: "/logo.png", alt: "Visual Security Systems logo", className: "brand-logo" }),
         /* @__PURE__ */ jsx("h1", { children: "Visual Security Systems" })
       ] }),
-      /* @__PURE__ */ jsxs("nav", { "aria-label": "Primary navigation", children: [
-        /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }),
-        /* @__PURE__ */ jsx(NavLink, { to: "/accountant", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }),
-        /* @__PURE__ */ jsx(NavLink, { to: "/operations", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }),
-        ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(NavLink, { to: "/users", className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
+      /* @__PURE__ */ jsxs("button", { type: "button", className: "mobile-menu-button", onClick: () => setMobileNavOpen((open) => !open), "aria-expanded": mobileNavOpen, "aria-controls": "primary-navigation", "aria-label": mobileNavOpen ? "Close navigation menu" : "Open navigation menu", children: [
+        /* @__PURE__ */ jsx("span", {}),
+        /* @__PURE__ */ jsx("span", {}),
+        /* @__PURE__ */ jsx("span", {})
+      ] }),
+      /* @__PURE__ */ jsxs("nav", { id: "primary-navigation", "aria-label": "Primary navigation", children: [
+        /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }),
+        /* @__PURE__ */ jsx(NavLink, { to: "/accountant", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }),
+        /* @__PURE__ */ jsx(NavLink, { to: "/operations", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }),
+        ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(NavLink, { to: "/users", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "sidebar-footer", children: [
         /* @__PURE__ */ jsxs("div", { className: "account-links", children: [
@@ -523,7 +529,10 @@ function App() {
                 ] }),
                 /* @__PURE__ */ jsx("span", { children: upcomingReminders.length })
               ] }),
-              upcomingReminders.length ? /* @__PURE__ */ jsx("div", { className: "reminder-list", children: upcomingReminders.map((reminder) => /* @__PURE__ */ jsxs(Link, { to: "/customers", onClick: () => setRemindersOpen(false), children: [
+              upcomingReminders.length ? /* @__PURE__ */ jsx("div", { className: "reminder-list", children: upcomingReminders.map((reminder) => /* @__PURE__ */ jsxs(Link, { to: "/customers", onClick: () => {
+                setRemindersOpen(false);
+                setMobileNavOpen(false);
+              }, children: [
                 /* @__PURE__ */ jsx("span", { className: "reminder-alert-icon", "aria-hidden": "true", children: "!" }),
                 /* @__PURE__ */ jsxs("div", { children: [
                   /* @__PURE__ */ jsx("strong", { children: reminder.customerName }),
@@ -549,6 +558,7 @@ function App() {
             NavLink,
             {
               to: "/settings",
+              onClick: () => setMobileNavOpen(false),
               "aria-label": "Settings",
               title: "Settings",
               className: ({ isActive }) => isActive ? "settings-icon-link active" : "settings-icon-link",
@@ -558,15 +568,15 @@ function App() {
               ] })
             }
           ),
-          /* @__PURE__ */ jsx(NavLink, { to: "/profile", className: ({ isActive }) => isActive ? "logout-button profile-account-link active" : "logout-button profile-account-link", children: "Profile" })
+          /* @__PURE__ */ jsx(NavLink, { to: "/profile", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "logout-button profile-account-link active" : "logout-button profile-account-link", children: "Profile" })
         ] })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("main", { className: "content", children: [
       databaseNotice ? /* @__PURE__ */ jsx("div", { className: `database-banner ${databaseNotice.includes("failed") || databaseNotice.includes("not connected") ? "error" : ""}`, children: databaseNotice }) : null,
       /* @__PURE__ */ jsxs(Routes, { children: [
-        /* @__PURE__ */ jsx(Route, { path: "/", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
         /* @__PURE__ */ jsx(Route, { path: "/accountant", element: /* @__PURE__ */ jsx(AccountantPage, { clients, payments, businessDate }) }),
         /* @__PURE__ */ jsx(Route, { path: "/operations", element: /* @__PURE__ */ jsx(OperationsPage, { clients, payments, businessDate }) }),
         /* @__PURE__ */ jsx(Route, { path: "/users", element: ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: "/", replace: true }) }),

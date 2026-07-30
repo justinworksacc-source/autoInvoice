@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useState } from "react";
-import { formatAmount, formatDueDate, getClientPaymentSummary, parseDateInput } from "../shared";
+import { clampNumber, formatAmount, formatDueDate, getClientPaymentSummary, parseDateInput } from "../shared";
 const sentDateFilterStorageKey = "vss-dashboard-sent-date-filter";
 const selectedSentDateStorageKey = "vss-dashboard-selected-sent-date";
 function loadSentDateFilter() {
@@ -35,7 +35,34 @@ function parseClientLastSent(value) {
   const parsed = new Date(valueWithYear);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
-function DashboardPage({ clients, payments, profile, session, businessDate, invoiceHistory }) {
+function monthlyDate(year, month, billingDay) {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(billingDay, lastDay));
+}
+function getUpcomingClientEvent(client, referenceDate, daysAfterBilling) {
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const startDate = client.startDate ? parseDateInput(client.startDate) : today;
+  const billingDay = clampNumber(client.billingDay, startDate.getDate(), 1, 31);
+  let cycleDate = monthlyDate(today.getFullYear(), today.getMonth(), billingDay);
+  while (cycleDate < startDate) {
+    cycleDate = monthlyDate(cycleDate.getFullYear(), cycleDate.getMonth() + 1, billingDay);
+  }
+  let eventDate = new Date(cycleDate);
+  eventDate.setDate(eventDate.getDate() + daysAfterBilling);
+  while (eventDate < today) {
+    cycleDate = monthlyDate(cycleDate.getFullYear(), cycleDate.getMonth() + 1, billingDay);
+    eventDate = new Date(cycleDate);
+    eventDate.setDate(eventDate.getDate() + daysAfterBilling);
+  }
+  return eventDate;
+}
+function findNextClientEvent(clients, referenceDate, offsetForClient) {
+  return clients.map((client) => ({
+    client,
+    date: getUpcomingClientEvent(client, referenceDate, offsetForClient(client))
+  })).sort((left, right) => left.date.getTime() - right.date.getTime())[0] || null;
+}
+function DashboardPage({ clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) {
   const [sentDateFilter, setSentDateFilter] = useState(loadSentDateFilter);
   const [selectedSentDate, setSelectedSentDate] = useState(loadSelectedSentDate);
   const businessDateValue = parseDateInput(businessDate);
@@ -47,7 +74,17 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
   const scheduledCount = clients.filter((client) => client.status === "Scheduled").length;
   const draftCount = clients.filter((client) => client.status === "Draft").length;
   const needsApprovalCount = clients.filter((client) => client.status === "Needs approval").length;
-  const nextBillingDay = clients.length > 0 ? Math.min(...clients.map((client) => Number(client.billingDay) || 1)) : null;
+  const nextInvoiceEvent = findNextClientEvent(clients, businessDateValue, () => 0);
+  const nextDueEvent = findNextClientEvent(
+    clients,
+    businessDateValue,
+    (client) => clampNumber(client.dueAfterDays, 14, 1, 90)
+  );
+  const nextAutoSendEvent = autoSendEnabled ? findNextClientEvent(
+    clients,
+    businessDateValue,
+    (client) => clampNumber(client.dueAfterDays, 14, 1, 90) - 7
+  ) : null;
   const recentClients = clients.slice(-5).reverse();
   const todayKey = manilaDateKey(/* @__PURE__ */ new Date());
   const startOfToday = Date.parse(`${todayKey}T00:00:00Z`);
@@ -136,8 +173,19 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "dashboard-status-grid", children: [
           /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("span", { children: "Next billing day" }),
-            /* @__PURE__ */ jsx("strong", { children: nextBillingDay ? `Day ${nextBillingDay}` : "No clients" })
+            /* @__PURE__ */ jsx("span", { children: "Next invoice cycle" }),
+            /* @__PURE__ */ jsx("strong", { children: nextInvoiceEvent ? formatDueDate(nextInvoiceEvent.date) : "No clients" }),
+            nextInvoiceEvent ? /* @__PURE__ */ jsx("small", { children: nextInvoiceEvent.client.name }) : null
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "Next automatic send" }),
+            /* @__PURE__ */ jsx("strong", { children: autoSendEnabled ? nextAutoSendEvent ? formatDueDate(nextAutoSendEvent.date) : "No clients" : "Delivery is off" }),
+            nextAutoSendEvent ? /* @__PURE__ */ jsx("small", { children: nextAutoSendEvent.client.name }) : null
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "Next payment due" }),
+            /* @__PURE__ */ jsx("strong", { children: nextDueEvent ? formatDueDate(nextDueEvent.date) : "No clients" }),
+            nextDueEvent ? /* @__PURE__ */ jsx("small", { children: nextDueEvent.client.name }) : null
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("span", { children: "Sender" }),
