@@ -4,7 +4,10 @@ const { Pool } = pg;
 let pool;
 
 function postgresUrl() {
-  return process.env.SUPABASE_DB_URL || process.env.DATABASE_URL;
+  return process.env.SUPABASE_DB_URL
+    || process.env.DATABASE_POSTGRES_URL
+    || process.env.POSTGRES_URL
+    || process.env.DATABASE_URL;
 }
 
 function placeholders(sql) {
@@ -43,7 +46,7 @@ export function database() {
   if (!pool) {
     const connectionString = postgresUrl();
     if (!connectionString) {
-      throw Object.assign(new Error("Set SUPABASE_DB_URL in Vercel to your Supabase PostgreSQL connection string."), { status: 503 });
+      throw Object.assign(new Error("Connect Supabase to Vercel or set SUPABASE_DB_URL to its PostgreSQL connection string."), { status: 503 });
     }
     pool = new Pool({
       connectionString,
