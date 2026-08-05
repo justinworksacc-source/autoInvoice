@@ -22,9 +22,13 @@ import {
 } from "../shared";
 import { AUTO_SEND_LEAD_DAYS, getAutoSendAttemptKey, loadAutoSendAttemptKeys, saveAutoSendAttemptKeys, sendInvoiceForClient } from "./invoiceService";
 import { secureFetch } from "../apiSecurity";
+import { usePhilippineLocationOptions } from "../usePhilippineLocations";
 const customerPostalPlaces = usePostalPH().fetchDataLists().data;
-function uniqueAddressValues(values) {
-  return [...new Set(values.filter((value) => value !== void 0 && value !== ""))].sort((left, right) => String(left).localeCompare(String(right)));
+function uniqueAddressValues(values: unknown[]): string[] {
+  return [...new Set(values.filter((value) => value !== void 0 && value !== "").map(String))].sort((left, right) => left.localeCompare(right));
+}
+function normalizeAddressPlace(value) {
+  return String(value || "").toLowerCase().replace(/\b(city|municipality) of\b/g, "").replace(/\bcity\b/g, "").replace(/[^a-z0-9]/g, "");
 }
 function getNameInitials(name) {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -70,6 +74,9 @@ function CustomersPage({
   const [editAddressCity, setEditAddressCity] = useState("");
   const [editAddressPostalCode, setEditAddressPostalCode] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editItemType, setEditItemType] = useState("Service");
+  const [editItemName, setEditItemName] = useState("");
+  const [editItemDescription, setEditItemDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState(formatDateInput());
   const [editDueAfterDays, setEditDueAfterDays] = useState("14");
   const [isSending, setIsSending] = useState(false);
@@ -106,20 +113,25 @@ function CustomersPage({
   const safeClientPage = Math.min(clientPage, clientPageCount);
   const clientPageStart = (safeClientPage - 1) * clientPageSize;
   const paginatedClients = filteredClients.slice(clientPageStart, clientPageStart + clientPageSize);
-  const editRegions = uniqueAddressValues(customerPostalPlaces.map((place) => place.region));
-  const editRegionPlaces = customerPostalPlaces.filter((place) => place.region === editAddressRegion);
-  const editCities = uniqueAddressValues(editRegionPlaces.map((place) => place.location));
-  const editBarangayPlaces = editRegionPlaces.filter((place) => place.location === editAddressCity);
-  const editBarangays = uniqueAddressValues(editBarangayPlaces.map((place) => place.municipality));
-  const editPostalCodes = uniqueAddressValues(editBarangayPlaces.filter((place) => !editAddressBarangay || place.municipality === editAddressBarangay).map((place) => place.post_code));
+  const { options: editRegions, loading: editRegionsLoading, error: editRegionsError } = usePhilippineLocationOptions("regions");
+  const { options: editProvinces, loading: editProvincesLoading, error: editProvincesError } = usePhilippineLocationOptions("provinces", editAddressRegion);
+  const { options: editCities, loading: editCitiesLoading, error: editCitiesError } = usePhilippineLocationOptions("cities", editAddressProvince);
+  const { options: editBarangays, loading: editBarangaysLoading, error: editBarangaysError } = usePhilippineLocationOptions("barangays", editAddressCity);
+  const selectedEditProvince = editProvinces.find((option) => option.code === editAddressProvince)?.name || "";
+  const selectedEditCity = editCities.find((option) => option.code === editAddressCity)?.name || "";
+  const editPostalCodes = uniqueAddressValues(customerPostalPlaces.filter((place) =>
+    normalizeAddressPlace(place.location) === normalizeAddressPlace(selectedEditProvince)
+    && normalizeAddressPlace(place.municipality) === normalizeAddressPlace(selectedEditCity)
+  ).map((place) => place.post_code));
   function updateEditAddress(next) {
     const house = String(next.house ?? editAddressHouse);
     const street = String(next.street ?? editAddressStreet);
     const subdivision = String(next.subdivision ?? editAddressSubdivision);
     const barangay = String(next.barangay ?? editAddressBarangay);
-    const city = String(next.location ?? editAddressCity);
+    const city = String(next.city ?? selectedEditCity);
+    const province = String(next.province ?? selectedEditProvince);
     const postalCode = String(next.post_code ?? editAddressPostalCode);
-    setEditAddress([house, street, subdivision, barangay, city, postalCode, "Philippines"].filter(Boolean).join(", "));
+    setEditAddress([house, street, subdivision, barangay, city, province, postalCode, "Philippines"].filter(Boolean).join(", "));
   }
   function searchClients(event) {
     event.preventDefault();
@@ -215,7 +227,7 @@ function CustomersPage({
       let sentCount = 0;
       for (const { client, dueDateKey } of dueTodayClients) {
         try {
-          await sendInvoiceForClient(client, profile, currentBusinessDate, payments);
+          await sendInvoiceForClient(client, profile, currentBusinessDate, payments, "Automatic");
           if (cancelled) {
             return;
           }
@@ -275,6 +287,9 @@ function CustomersPage({
     setEditAddressCity("");
     setEditAddressPostalCode("");
     setEditAmount(client.amount);
+    setEditItemType(client.itemType || "Service");
+    setEditItemName(client.itemName || "Monthly service charge");
+    setEditItemDescription(client.itemDescription || "");
     setEditStartDate(getClientStartDateInput(client));
     setEditDueAfterDays(client.dueAfterDays || "14");
   }
@@ -305,6 +320,9 @@ function CustomersPage({
       email: nextEmail,
       address: editAddress.trim(),
       amount: editAmount.trim() || "0.00",
+      itemType: editItemType,
+      itemName: editItemName.trim() || "Monthly service charge",
+      itemDescription: editItemDescription.trim(),
       startDate: cleanStartDate,
       billingDay: nextBillingDay,
       dueAfterDays: editDueAfterDays
@@ -661,7 +679,15 @@ function CustomersPage({
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("dt", { children: "Unpaid cycles" }),
           /* @__PURE__ */ jsx("dd", { children: pendingSendSummary.unpaidInvoiceCount })
-        ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("dt", { children: clientPendingSend.itemType || "Service" }),
+          /* @__PURE__ */ jsx("dd", { children: clientPendingSend.itemName || "Monthly service charge" })
+        ] }),
+        clientPendingSend.itemDescription ? /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("dt", { children: "Description" }),
+          /* @__PURE__ */ jsx("dd", { children: clientPendingSend.itemDescription })
+        ] }) : null
       ] }) : null,
       sendError ? /* @__PURE__ */ jsx("p", { className: "dialog-error", children: sendError }) : null,
       /* @__PURE__ */ jsxs("div", { className: "button-row", children: [
@@ -789,45 +815,60 @@ function CustomersPage({
               setEditAddressCity("");
               setEditAddressBarangay("");
               setEditAddressPostalCode("");
-              updateEditAddress({ region, barangay: "", municipality: "", location: "", post_code: "" });
+              updateEditAddress({ region, province: "", barangay: "", city: "", post_code: "" });
             }, children: [
-              /* @__PURE__ */ jsx("option", { value: "", children: "Choose region" }),
-              editRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region, children: region }, region))
+              /* @__PURE__ */ jsx("option", { value: "", children: editRegionsLoading ? "Loading regions\u2026" : editRegionsError ? "Regions unavailable" : "Choose region" }),
+              editRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region.code, children: region.name }, region.code))
             ] })
           ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
-            "City / Municipality",
-            /* @__PURE__ */ jsxs("select", { value: editAddressCity, disabled: !editAddressRegion, onChange: (event) => {
-              const city = event.target.value;
-              setEditAddressCity(city);
+            "Province",
+            /* @__PURE__ */ jsxs("select", { value: editAddressProvince, disabled: !editAddressRegion, onChange: (event) => {
+              const provinceCode = event.target.value;
+              const province = editProvinces.find((option) => option.code === provinceCode)?.name || "";
+              setEditAddressProvince(provinceCode);
+              setEditAddressCity("");
               setEditAddressBarangay("");
               setEditAddressPostalCode("");
-              updateEditAddress({ barangay: "", location: city, post_code: "" });
+              updateEditAddress({ province, barangay: "", city: "", post_code: "" });
             }, children: [
-              /* @__PURE__ */ jsx("option", { value: "", children: "Choose city / municipality" }),
-              editCities.map((city) => /* @__PURE__ */ jsx("option", { value: city, children: city }, city))
+              /* @__PURE__ */ jsx("option", { value: "", children: editProvincesLoading ? "Loading provinces\u2026" : editProvincesError ? "Provinces unavailable" : "Choose province" }),
+              editProvinces.map((province) => /* @__PURE__ */ jsx("option", { value: province.code, children: province.name }, province.code))
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("label", { children: [
+            "City / Municipality",
+            /* @__PURE__ */ jsxs("select", { value: editAddressCity, disabled: !editAddressProvince, onChange: (event) => {
+              const cityCode = event.target.value;
+              const city = editCities.find((option) => option.code === cityCode)?.name || "";
+              setEditAddressCity(cityCode);
+              setEditAddressBarangay("");
+              setEditAddressPostalCode("");
+              updateEditAddress({ barangay: "", city, post_code: "" });
+            }, children: [
+              /* @__PURE__ */ jsx("option", { value: "", children: editCitiesLoading ? "Loading cities\u2026" : editCitiesError ? "Cities unavailable" : "Choose city / municipality" }),
+              editCities.map((city) => /* @__PURE__ */ jsx("option", { value: city.code, children: city.name }, city.code))
             ] })
           ] })
-        ,
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
-            "Barangay / District",
-            /* @__PURE__ */ jsxs("select", { value: editAddressBarangay, disabled: !editAddressCity, onChange: (event) => {
+            "Barangay",
+            /* @__PURE__ */ jsxs("select", { value: editAddressBarangay, disabled: !editAddressCity || editBarangaysLoading || Boolean(editBarangaysError), onChange: (event) => {
               const barangay = event.target.value;
               setEditAddressBarangay(barangay);
               setEditAddressPostalCode("");
               updateEditAddress({ barangay, post_code: "" });
             }, children: [
-              /* @__PURE__ */ jsx("option", { value: "", children: "Choose barangay / district" }),
-              editBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay, children: barangay }, barangay))
+              /* @__PURE__ */ jsx("option", { value: "", children: editBarangaysLoading ? "Loading barangays\u2026" : editBarangaysError ? "Barangays unavailable" : "Choose barangay" }),
+              editBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay.name, children: barangay.name }, barangay.code))
             ] })
           ] }),
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Postal code",
-            /* @__PURE__ */ jsxs("select", { value: editAddressPostalCode, disabled: !editAddressCity, onChange: (event) => {
+            /* @__PURE__ */ jsxs("select", { value: editAddressPostalCode, disabled: !editAddressBarangay, onChange: (event) => {
               const postCode = event.target.value;
               setEditAddressPostalCode(postCode);
               updateEditAddress({ post_code: postCode });
@@ -835,11 +876,11 @@ function CustomersPage({
               /* @__PURE__ */ jsx("option", { value: "", children: "Choose postal code" }),
               editPostalCodes.map((postCode) => /* @__PURE__ */ jsx("option", { value: postCode, children: postCode }, postCode))
             ] })
-          ] }),
-          /* @__PURE__ */ jsxs("label", { children: [
-            "Country",
-            /* @__PURE__ */ jsx("input", { value: "Philippines", readOnly: true })
           ] })
+        ] }),
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Country",
+          /* @__PURE__ */ jsx("input", { value: "Philippines", readOnly: true })
         ] }),
         /* @__PURE__ */ jsxs("p", { children: [
           /* @__PURE__ */ jsx("strong", { children: "Complete address:" }),
@@ -856,6 +897,23 @@ function CustomersPage({
           "Start date",
           /* @__PURE__ */ jsx("input", { type: "date", value: editStartDate, onChange: (event) => setEditStartDate(event.target.value) })
         ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Item type",
+          /* @__PURE__ */ jsxs("select", { value: editItemType, onChange: (event) => setEditItemType(event.target.value), children: [
+            /* @__PURE__ */ jsx("option", { value: "Service", children: "Service" }),
+            /* @__PURE__ */ jsx("option", { value: "Product", children: "Product" })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Service or product",
+          /* @__PURE__ */ jsx("input", { value: editItemName, placeholder: "e.g. Consultancy services", onChange: (event) => setEditItemName(event.target.value), required: true })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("label", { children: [
+        "Description (optional)",
+        /* @__PURE__ */ jsx("textarea", { value: editItemDescription, placeholder: "e.g. Monthly business consultancy and advisory support", rows: 3, onChange: (event) => setEditItemDescription(event.target.value) })
       ] }),
       /* @__PURE__ */ jsxs("label", { children: [
         "Due after days",

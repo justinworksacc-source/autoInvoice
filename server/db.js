@@ -1,106 +1,99 @@
-import mysql from "mysql2/promise";
+import pg from "pg";
 
+const { Pool } = pg;
 let pool;
+
+function postgresUrl() {
+  return process.env.SUPABASE_DB_URL
+    || process.env.DATABASE_POSTGRES_URL
+    || process.env.POSTGRES_URL
+    || process.env.DATABASE_URL;
+}
+
+function verifiedConnection(connectionString) {
+  const ca = String(process.env.DB_SSL_CA || "").replace(/\\n/g, "\n").trim();
+  if (!ca) {
+    throw Object.assign(new Error("Set DB_SSL_CA in Vercel to the Supabase server root certificate."), { status: 503 });
+  }
+  const url = new URL(connectionString);
+  // Prevent a URL sslmode from overriding the explicitly verified CA below.
+  url.searchParams.delete("sslmode");
+  return { connectionString: url.toString(), ssl: { ca, rejectUnauthorized: true } };
+}
+
+function placeholders(sql) {
+  let index = 0;
+  let quote = null;
+  let output = "";
+  for (let position = 0; position < sql.length; position += 1) {
+    const character = sql[position];
+    if ((character === "'" || character === '"') && sql[position - 1] !== "\\") {
+      quote = quote === character ? null : (quote || character);
+    }
+    output += character === "?" && !quote ? `$${++index}` : character;
+  }
+  return output;
+}
+
+function mysqlCompatibleResult(result) {
+  if (result.command === "SELECT") return [result.rows, result.fields];
+  return [{ affectedRows: result.rowCount, insertId: result.rows?.[0]?.id }, result.fields];
+}
+
+function adapter(queryable, release) {
+  return {
+    async execute(sql, values = []) {
+      const result = await queryable.query(placeholders(sql), values);
+      return mysqlCompatibleResult(result);
+    },
+    async beginTransaction() { await queryable.query("BEGIN"); },
+    async commit() { await queryable.query("COMMIT"); },
+    async rollback() { await queryable.query("ROLLBACK"); },
+    release: release || (() => {})
+  };
+}
 
 export function database() {
   if (!pool) {
-    const host = process.env.DB_HOST;
-    if (!host || host === "127.0.0.1" || host === "localhost") {
-      throw Object.assign(new Error("Set DB_HOST to a public managed MySQL host in Vercel."), { status: 503 });
+    const connectionString = postgresUrl();
+    if (!connectionString) {
+      throw Object.assign(new Error("Connect Supabase to Vercel or set SUPABASE_DB_URL to its PostgreSQL connection string."), { status: 503 });
     }
-    const sslEnabled = process.env.DB_SSL !== "false";
-    const ca = String(process.env.DB_SSL_CA || "").replace(/\\n/g, "\n").trim();
-    pool = mysql.createPool({
-      host,
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASS,
-      database: process.env.DB_NAME,
-      waitForConnections: true,
-      connectionLimit: 3,
-      enableKeepAlive: true,
-      ssl: sslEnabled ? {
-        ...(ca ? { ca } : {}),
-        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false"
-      } : undefined
+    pool = new Pool({
+      ...verifiedConnection(connectionString),
+      max: 3,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 10_000
     });
   }
-  return pool;
+  const db = adapter(pool);
+  db.getConnection = async () => {
+    const client = await pool.connect();
+    return adapter(client, () => client.release());
+  };
+  return db;
 }
 
 export async function ensureCompany() {
-  const db = database();
-  await db.execute(
-    `CREATE TABLE IF NOT EXISTS companies (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(255) NOT NULL,
-      tenant_key VARCHAR(100) UNIQUE NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`
-  );
-  await db.execute(
+  await database().execute(
     `INSERT INTO companies (id, name, tenant_key)
      VALUES (1, 'Visual Security Systems', 'visual-security-systems')
-     ON DUPLICATE KEY UPDATE name = VALUES(name)`
+     ON CONFLICT (id) DO UPDATE SET tenant_key = EXCLUDED.tenant_key`
   );
 }
 
-let authSchemaPromise;
+export async function ensureInvoiceHistorySchema() {
+  await ensureCompany();
+}
 
 export async function ensureAuthSchema() {
-  if (!authSchemaPromise) {
-    authSchemaPromise = (async () => {
-      const db = database();
-      await ensureCompany();
-      await db.execute(
-        `CREATE TABLE IF NOT EXISTS auth_accounts (
-          id BIGINT AUTO_INCREMENT PRIMARY KEY,
-          company_id BIGINT NULL,
-          username VARCHAR(100) UNIQUE NOT NULL,
-          password_hash VARCHAR(255) NOT NULL,
-          is_active TINYINT(1) NOT NULL DEFAULT 1,
-          role VARCHAR(30) NOT NULL DEFAULT 'admin',
-          full_name VARCHAR(255) NULL,
-          last_login_at DATETIME NULL,
-          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (company_id) REFERENCES companies(id)
-        )`
-      );
-      await db.execute(
-        `CREATE TABLE IF NOT EXISTS auth_login_attempts (
-          id BIGINT AUTO_INCREMENT PRIMARY KEY,
-          username VARCHAR(100) NOT NULL,
-          ip_address VARCHAR(45) NOT NULL,
-          attempted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          INDEX auth_login_attempts_lookup_idx (username, ip_address, attempted_at)
-        )`
-      );
-      const [rows] = await db.execute(
-        `SELECT COLUMN_NAME columnName
-           FROM information_schema.COLUMNS
-          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'auth_accounts'`
-      );
-      const columns = new Set(rows.map((row) => row.columnName));
-      const additions = [
-        ["role", "ALTER TABLE auth_accounts ADD COLUMN role VARCHAR(30) NOT NULL DEFAULT 'admin'"],
-        ["full_name", "ALTER TABLE auth_accounts ADD COLUMN full_name VARCHAR(255) NULL"],
-        ["last_login_at", "ALTER TABLE auth_accounts ADD COLUMN last_login_at DATETIME NULL"]
-      ];
-      for (const [column, statement] of additions) {
-        if (!columns.has(column)) {
-          try {
-            await db.execute(statement);
-          } catch (error) {
-            // Another cold-started function may have added the same column first.
-            if (error?.code !== "ER_DUP_FIELDNAME") throw error;
-          }
-        }
-      }
-    })().catch((error) => {
-      authSchemaPromise = undefined;
-      throw error;
-    });
+  await ensureCompany();
+  const [[superAdmin]] = await database().execute(
+    "SELECT COUNT(*)::int AS count FROM auth_accounts WHERE role='super_admin'"
+  );
+  if (!superAdmin.count) {
+    await database().execute(
+      "UPDATE auth_accounts SET role='super_admin', is_active=TRUE WHERE LOWER(username)='visualsecsys'"
+    );
   }
-  return authSchemaPromise;
 }

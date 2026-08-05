@@ -3,9 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import usePostalPH from "use-postal-ph";
 import { clampNumber, formatDueDate, isDateInput, parseDateInput } from "../shared";
+import { usePhilippineLocationOptions } from "../usePhilippineLocations";
 const philippinePostalPlaces = usePostalPH().fetchDataLists().data;
-function uniqueValues(values) {
-  return [...new Set(values.filter((value) => value !== void 0 && value !== ""))].sort((left, right) => String(left).localeCompare(String(right)));
+function uniqueValues(values: unknown[]): string[] {
+  return [...new Set(values.filter((value) => value !== void 0 && value !== "").map(String))].sort((left, right) => left.localeCompare(right));
+}
+function normalizePlaceName(value) {
+  return String(value || "").toLowerCase().replace(/\b(city|municipality) of\b/g, "").replace(/\bcity\b/g, "").replace(/[^a-z0-9]/g, "");
 }
 function PrepareInvoicesPage({
   clients,
@@ -31,15 +35,32 @@ function PrepareInvoicesPage({
   const [addressLocality, setAddressLocality] = useState("");
   const [addressPostalCode, setAddressPostalCode] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [itemType, setItemType] = useState("Service");
+  const [itemName, setItemName] = useState("");
+  const [itemDescription, setItemDescription] = useState("");
   const [subject, setSubject] = useState("Invoice {{invoice_number}} for {{billing_month}}");
   const [message, setMessage] = useState(
     "Hi {{customer_name}},\n\nAttached is your invoice {{invoice_number}} for {{billing_month}}. Payment is due on {{due_date}}.\n\nThank you,\n{{company_name}}"
   );
   const [saved, setSaved] = useState(false);
   const [customerSaved, setCustomerSaved] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   useEffect(() => {
     setStartDate(businessDate);
   }, [businessDate]);
+  useEffect(() => {
+    if (!isFormOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsFormOpen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isFormOpen]);
   const cleanStartDate = isDateInput(startDate) ? startDate : businessDate;
   const startDateValue = parseDateInput(cleanStartDate);
   const billingDay = String(clampNumber(String(startDateValue.getDate()), 1, 1, 31));
@@ -64,22 +85,26 @@ function PrepareInvoicesPage({
     "open dispute",
     "invoice total over approved limit"
   ];
-  const addressRegions = uniqueValues(philippinePostalPlaces.map((place) => place.region));
-  const municipalityPlaces = philippinePostalPlaces.filter((place) => place.region === addressRegion);
-  const addressMunicipalities = uniqueValues(municipalityPlaces.map((place) => place.municipality));
-  const localityPlaces = municipalityPlaces.filter((place) => place.municipality === addressMunicipality);
-  const addressLocalities = uniqueValues(localityPlaces.map((place) => place.location));
-  const postalPlaces = localityPlaces.filter((place) => !addressLocality || place.location === addressLocality);
+  const { options: addressRegions, loading: regionsLoading, error: regionsError } = usePhilippineLocationOptions("regions");
+  const { options: addressProvinces, loading: provincesLoading, error: provincesError } = usePhilippineLocationOptions("provinces", addressRegion);
+  const { options: addressCities, loading: citiesLoading, error: citiesError } = usePhilippineLocationOptions("cities", addressMunicipality);
+  const { options: addressBarangays, loading: barangaysLoading, error: barangaysError } = usePhilippineLocationOptions("barangays", addressLocality);
+  const selectedProvince = addressProvinces.find((option) => option.code === addressMunicipality)?.name || "";
+  const selectedCity = addressCities.find((option) => option.code === addressLocality)?.name || "";
+  const postalPlaces = philippinePostalPlaces.filter((place) =>
+    normalizePlaceName(place.location) === normalizePlaceName(selectedProvince)
+    && normalizePlaceName(place.municipality) === normalizePlaceName(selectedCity)
+  );
   const addressPostalCodes = uniqueValues(postalPlaces.map((place) => place.post_code));
   function updateComposedAddress(next) {
     const house = String(next.house ?? addressHouse);
     const street = String(next.street ?? addressStreet);
     const subdivision = String(next.subdivision ?? addressSubdivision);
     const barangay = String(next.barangay ?? addressBarangay);
-    const municipality = String(next.municipality ?? addressMunicipality);
-    const locality = String(next.location ?? addressLocality);
+    const province = String(next.province ?? selectedProvince);
+    const city = String(next.city ?? selectedCity);
     const postalCode = String(next.post_code ?? addressPostalCode);
-    setCustomerAddress([house, street, subdivision, barangay, locality, municipality, postalCode, "Philippines"].filter(Boolean).join(", "));
+    setCustomerAddress([house, street, subdivision, barangay, city, province, postalCode, "Philippines"].filter(Boolean).join(", "));
   }
   function handleSave(event) {
     event.preventDefault();
@@ -91,6 +116,9 @@ function PrepareInvoicesPage({
       address: customerAddress.trim(),
       invoiceNumber: automaticInvoiceNumber,
       amount: invoiceAmount.trim() || "0.00",
+      itemType,
+      itemName: itemName.trim(),
+      itemDescription: itemDescription.trim(),
       startDate: cleanStartDate,
       billingDay,
       dueAfterDays: dueDays,
@@ -115,6 +143,10 @@ function PrepareInvoicesPage({
     setAddressLocality("");
     setAddressPostalCode("");
     setInvoiceAmount("");
+    setItemType("Service");
+    setItemName("");
+    setItemDescription("");
+    setIsFormOpen(false);
   }
   return /* @__PURE__ */ jsxs("section", { className: "page-stack monthly-invoices-page", children: [
     /* @__PURE__ */ jsx("div", { className: "page-heading", children: /* @__PURE__ */ jsxs("div", { className: "page-heading-with-back", children: [
@@ -148,13 +180,86 @@ function PrepareInvoicesPage({
         /* @__PURE__ */ jsx("small", { children: "Invoice payment terms" })
       ] })
     ] }),
-    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Monthly invoice rule saved locally for the next billing run." }) : null,
+    saved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Monthly invoice saved and added to the list below." }) : null,
     customerSaved ? /* @__PURE__ */ jsx("div", { className: "saved-banner", children: "Client Gmail recipient saved to the monthly invoice list." }) : null,
-    /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
+    /* @__PURE__ */ jsxs("div", { className: "monthly-invoice-actions", children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("h3", { children: "Monthly invoice records" }),
+        /* @__PURE__ */ jsx("p", { children: "Create an invoice in the pop-up form and it will appear here after saving." })
+      ] }),
+      /* @__PURE__ */ jsxs("button", { type: "button", className: "monthly-create-button", onClick: () => {
+        setSaved(false);
+        setCustomerSaved(false);
+        setIsFormOpen(true);
+      }, children: [
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "+" }),
+        " New monthly invoice"
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("section", { className: "saved-monthly-invoices", "aria-label": "Saved monthly invoices", children: [
+      /* @__PURE__ */ jsxs("div", { className: "saved-monthly-heading", children: [
+        /* @__PURE__ */ jsx("h3", { children: "Saved invoices" }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          clients.length,
+          clients.length === 1 ? " invoice" : " invoices"
+        ] })
+      ] }),
+      clients.length ? /* @__PURE__ */ jsx("div", { className: "saved-monthly-grid", children: clients.map((client) => /* @__PURE__ */ jsxs("article", { className: "saved-monthly-card", children: [
+        /* @__PURE__ */ jsxs("div", { className: "saved-monthly-card-top", children: [
+          /* @__PURE__ */ jsx("span", { className: "saved-monthly-icon", "aria-hidden": "true", children: "\u25A7" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: client.invoiceNumber }),
+            /* @__PURE__ */ jsx("small", { children: client.status })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsx("h4", { children: client.itemName || "Monthly service charge" }),
+        client.itemDescription ? /* @__PURE__ */ jsx("p", { children: client.itemDescription }) : null,
+        /* @__PURE__ */ jsxs("dl", { children: [
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Customer" }),
+            /* @__PURE__ */ jsx("dd", { children: client.name })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Monthly amount" }),
+            /* @__PURE__ */ jsx("dd", { children: client.amount })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Due after" }),
+            /* @__PURE__ */ jsxs("dd", { children: [
+              client.dueAfterDays || "14",
+              " days"
+            ] })
+          ] })
+        ] })
+      ] }, client.id)) }) : /* @__PURE__ */ jsxs("div", { className: "saved-monthly-empty", children: [
+        /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u25A7" }),
+        /* @__PURE__ */ jsx("strong", { children: "No monthly invoices yet" }),
+        /* @__PURE__ */ jsx("p", { children: "Click New monthly invoice to create your first record." })
+      ] })
+    ] }),
+    isFormOpen ? /* @__PURE__ */ jsx("div", { className: "invoice-modal-backdrop", onMouseDown: (event) => {
+      if (event.target === event.currentTarget) setIsFormOpen(false);
+    }, children: /* @__PURE__ */ jsxs("div", { className: "invoice-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "invoice-modal-title", onMouseDown: (event) => event.stopPropagation(), children: [
+      /* @__PURE__ */ jsxs("div", { className: "invoice-modal-header", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("span", { children: "Monthly invoice" }),
+          /* @__PURE__ */ jsx("h3", { id: "invoice-modal-title", children: "Create monthly invoice" })
+        ] }),
+        /* @__PURE__ */ jsx("button", { type: "button", className: "invoice-modal-close", onClick: () => setIsFormOpen(false), "aria-label": "Close invoice form", children: "\xD7" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
       /* @__PURE__ */ jsxs("form", { id: "monthly-invoice-settings", className: "work-form settings-card monthly-settings-card", onSubmit: handleSave, children: [
         /* @__PURE__ */ jsxs("div", { className: "monthly-card-title", children: [
           /* @__PURE__ */ jsx("span", { children: "\u2699" }),
           /* @__PURE__ */ jsx("h3", { children: "Invoice Automation Settings" })
+        ] }),
+        /* @__PURE__ */ jsx("p", { className: "monthly-form-intro", children: "Set the billing schedule, customer, and service or product for this recurring invoice." }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "1" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Billing schedule" }),
+            /* @__PURE__ */ jsx("small", { children: "Choose when the invoice starts, sends, and becomes due." })
+          ] })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
@@ -180,6 +285,13 @@ function PrepareInvoicesPage({
           "Company name",
           /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: profile.companyName || "Not configured" })
         ] }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "2" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Customer information" }),
+            /* @__PURE__ */ jsx("small", { children: "Enter who will receive this invoice." })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Customer name",
@@ -199,6 +311,13 @@ function PrepareInvoicesPage({
             )
           ] })
         ] }),
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-section-heading", children: [
+          /* @__PURE__ */ jsx("span", { children: "3" }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("strong", { children: "Invoice item" }),
+            /* @__PURE__ */ jsx("small", { children: "Describe the service or product and its monthly price." })
+          ] })
+        ] }),
         /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
           /* @__PURE__ */ jsxs("label", { children: [
             "Invoice number (automatic)",
@@ -206,11 +325,106 @@ function PrepareInvoicesPage({
           ] }),
           /* @__PURE__ */ jsxs("label", { children: [
             "Monthly amount",
-            /* @__PURE__ */ jsx("input", { inputMode: "decimal", value: invoiceAmount, placeholder: "0.00", onChange: (event) => setInvoiceAmount(event.target.value), required: true })
+            /* @__PURE__ */ jsx("input", { type: "number", inputMode: "decimal", min: "0", step: "0.01", value: invoiceAmount, placeholder: "0.00", onChange: (event) => setInvoiceAmount(event.target.value), required: true })
           ] })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Item type",
+            /* @__PURE__ */ jsxs("select", { value: itemType, onChange: (event) => setItemType(event.target.value), children: [
+              /* @__PURE__ */ jsx("option", { value: "Service", children: "Service" }),
+              /* @__PURE__ */ jsx("option", { value: "Product", children: "Product" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("label", { children: [
+            "Service or product",
+            /* @__PURE__ */ jsx("input", { value: itemName, placeholder: "e.g. Consultancy services", onChange: (event) => setItemName(event.target.value), required: true })
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxs("label", { children: [
+          "Description (optional)",
+          /* @__PURE__ */ jsx("textarea", { value: itemDescription, placeholder: "e.g. Monthly business consultancy and advisory support", rows: 3, onChange: (event) => setItemDescription(event.target.value) })
         ] }),
         /* @__PURE__ */ jsxs("fieldset", { className: "billing-address-fields", children: [
           /* @__PURE__ */ jsx("legend", { children: "Customer billing address" }),
+          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Region ",
+              /* @__PURE__ */ jsx("span", { className: "sr-only", children: "used to filter provinces" }),
+              /* @__PURE__ */ jsxs("select", { value: addressRegion, onChange: (event) => {
+                const region = event.target.value;
+                setAddressRegion(region);
+                setAddressMunicipality("");
+                setAddressLocality("");
+                setAddressBarangay("");
+                setAddressPostalCode("");
+                updateComposedAddress({ region, province: "", city: "", barangay: "", post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: regionsLoading ? "Loading regions\u2026" : regionsError ? "Regions unavailable" : "Choose region" }),
+                addressRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region.code, children: region.name }, region.code))
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Province",
+              /* @__PURE__ */ jsxs("select", { value: addressMunicipality, disabled: !addressRegion, onChange: (event) => {
+                const provinceCode = event.target.value;
+                const province = addressProvinces.find((option) => option.code === provinceCode)?.name || "";
+                setAddressMunicipality(provinceCode);
+                setAddressLocality("");
+                setAddressBarangay("");
+                setAddressPostalCode("");
+                updateComposedAddress({ province, city: "", barangay: "", post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: provincesLoading ? "Loading provinces\u2026" : provincesError ? "Provinces unavailable" : "Choose province" }),
+                addressProvinces.map((province) => /* @__PURE__ */ jsx("option", { value: province.code, children: province.name }, province.code))
+              ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
+              "City / Municipality",
+              /* @__PURE__ */ jsxs("select", { value: addressLocality, disabled: !addressMunicipality, onChange: (event) => {
+                const cityCode = event.target.value;
+                const city = addressCities.find((option) => option.code === cityCode)?.name || "";
+                setAddressLocality(cityCode);
+                setAddressBarangay("");
+                setAddressPostalCode("");
+                updateComposedAddress({ city, barangay: "", post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: citiesLoading ? "Loading cities\u2026" : citiesError ? "Cities unavailable" : "Choose city / municipality" }),
+                addressCities.map((city) => /* @__PURE__ */ jsx("option", { value: city.code, children: city.name }, city.code))
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Barangay",
+              /* @__PURE__ */ jsxs("select", { value: addressBarangay, disabled: !addressLocality || barangaysLoading || Boolean(barangaysError), onChange: (event) => {
+                const barangay = event.target.value;
+                setAddressBarangay(barangay);
+                setAddressPostalCode("");
+                updateComposedAddress({ barangay, post_code: "" });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: barangaysLoading ? "Loading barangays\u2026" : barangaysError ? "Barangays unavailable" : "Choose barangay" }),
+                addressBarangays.map((barangay) => /* @__PURE__ */ jsx("option", { value: barangay.name, children: barangay.name }, barangay.code))
+              ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Postal code",
+              /* @__PURE__ */ jsxs("select", { value: addressPostalCode, disabled: !addressBarangay, onChange: (event) => {
+                const postCode = event.target.value;
+                setAddressPostalCode(postCode);
+                updateComposedAddress({ post_code: postCode });
+              }, children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Choose postal code" }),
+                addressPostalCodes.map((postCode) => /* @__PURE__ */ jsx("option", { value: postCode, children: postCode }, postCode))
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxs("label", { children: [
+              "Country",
+              /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: "Philippines" })
+            ] })
+          ] }),
           /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
             /* @__PURE__ */ jsxs("label", { children: [
               "Block / Lot / House No.",
@@ -227,80 +441,12 @@ function PrepareInvoicesPage({
               } })
             ] })
           ] }),
-          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Subdivision / Village",
-              /* @__PURE__ */ jsx("input", { value: addressSubdivision, placeholder: "e.g. Camella Homes", onChange: (event) => {
-                setAddressSubdivision(event.target.value);
-                updateComposedAddress({ subdivision: event.target.value });
-              } })
-            ] }),
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Barangay",
-              /* @__PURE__ */ jsx("input", { value: addressBarangay, placeholder: "e.g. Cantil-e", onChange: (event) => {
-                setAddressBarangay(event.target.value);
-                updateComposedAddress({ barangay: event.target.value });
-              } })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Region ",
-              /* @__PURE__ */ jsx("span", { className: "sr-only", children: "used to filter provinces" }),
-              /* @__PURE__ */ jsxs("select", { value: addressRegion, onChange: (event) => {
-                const region = event.target.value;
-                setAddressRegion(region);
-                setAddressMunicipality("");
-                setAddressLocality("");
-                setAddressPostalCode("");
-                updateComposedAddress({ region, municipality: "", location: "", post_code: "" });
-              }, children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Choose region" }),
-                addressRegions.map((region) => /* @__PURE__ */ jsx("option", { value: region, children: region }, region))
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Province",
-              /* @__PURE__ */ jsxs("select", { value: addressMunicipality, disabled: !addressRegion, onChange: (event) => {
-                const municipality = event.target.value;
-                setAddressMunicipality(municipality);
-                setAddressLocality("");
-                setAddressPostalCode("");
-                updateComposedAddress({ municipality, location: "", post_code: "" });
-              }, children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Choose province" }),
-                addressMunicipalities.map((municipality) => /* @__PURE__ */ jsx("option", { value: municipality, children: municipality }, municipality))
-              ] })
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
-            /* @__PURE__ */ jsxs("label", { children: [
-              "City / Municipality",
-              /* @__PURE__ */ jsxs("select", { value: addressLocality, disabled: !addressMunicipality, onChange: (event) => {
-                const location = event.target.value;
-                setAddressLocality(location);
-                setAddressPostalCode("");
-                updateComposedAddress({ location, post_code: "" });
-              }, children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Choose city / municipality" }),
-                addressLocalities.map((locality) => /* @__PURE__ */ jsx("option", { value: locality, children: locality }, locality))
-              ] })
-            ] }),
-            /* @__PURE__ */ jsxs("label", { children: [
-              "Postal code",
-              /* @__PURE__ */ jsxs("select", { value: addressPostalCode, disabled: !addressMunicipality, onChange: (event) => {
-                const postCode = event.target.value;
-                setAddressPostalCode(postCode);
-                updateComposedAddress({ post_code: postCode });
-              }, children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Choose postal code" }),
-                addressPostalCodes.map((postCode) => /* @__PURE__ */ jsx("option", { value: postCode, children: postCode }, postCode))
-              ] })
-            ] })
-          ] }),
           /* @__PURE__ */ jsxs("label", { children: [
-            "Country",
-            /* @__PURE__ */ jsx("output", { className: "monthly-readonly-value", children: "Philippines" })
+            "Subdivision / Village",
+            /* @__PURE__ */ jsx("input", { value: addressSubdivision, placeholder: "e.g. Camella Homes", onChange: (event) => {
+              setAddressSubdivision(event.target.value);
+              updateComposedAddress({ subdivision: event.target.value });
+            } })
           ] }),
           /* @__PURE__ */ jsxs("p", { children: [
             /* @__PURE__ */ jsx("strong", { children: "Complete address:" }),
@@ -308,11 +454,19 @@ function PrepareInvoicesPage({
             customerAddress || "Select the address fields above."
           ] })
         ] }),
-        /* @__PURE__ */ jsxs("label", { className: "checkbox-line", children: [
-          /* @__PURE__ */ jsx("input", { type: "checkbox", checked: autoSendEnabled, onChange: (event) => onAutoSendChange(event.target.checked) }),
-          "Send monthly invoices automatically 7 days before due"
-        ] }),
-        /* @__PURE__ */ jsx("button", { type: "submit", children: "Save monthly invoice" })
+        /* @__PURE__ */ jsxs("div", { className: "monthly-form-footer", children: [
+          /* @__PURE__ */ jsxs("label", { className: "checkbox-line monthly-auto-send", children: [
+            /* @__PURE__ */ jsx("input", { type: "checkbox", checked: autoSendEnabled, onChange: (event) => onAutoSendChange(event.target.checked) }),
+            /* @__PURE__ */ jsxs("span", { children: [
+              /* @__PURE__ */ jsx("strong", { children: "Automatic delivery" }),
+              /* @__PURE__ */ jsx("small", { children: "Send 7 days before the due date." })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "monthly-form-actions", children: [
+            /* @__PURE__ */ jsx("button", { type: "button", className: "secondary-button", onClick: () => setIsFormOpen(false), children: "Cancel" }),
+            /* @__PURE__ */ jsx("button", { type: "submit", children: "Save monthly invoice" })
+          ] })
+        ] })
       ] }),
       /* @__PURE__ */ jsxs("article", { className: "invoice-preview invoice-text-summary", "aria-label": "Invoice details summary", children: [
         /* @__PURE__ */ jsxs("div", { className: "panel-heading", children: [
@@ -346,6 +500,13 @@ function PrepareInvoicesPage({
             /* @__PURE__ */ jsx("dd", { children: customerAddress.trim() || "No billing address entered" })
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("dt", { children: "Service / product" }),
+            /* @__PURE__ */ jsxs("dd", { children: [
+              itemName.trim() || "No item entered",
+              itemDescription.trim() ? ` — ${itemDescription.trim()}` : ""
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("dt", { children: "Monthly amount" }),
             /* @__PURE__ */ jsx("dd", { children: invoiceAmount.trim() || "0.00" })
           ] }),
@@ -359,7 +520,8 @@ function PrepareInvoicesPage({
         ] }),
         /* @__PURE__ */ jsx("p", { className: "invoice-summary-note", children: "The Gmail attachment contains the final invoice layout. This panel only confirms the information that will be placed in that PDF." })
       ] })
-    ] }),
+      ] })
+    ] }) }) : null,
     /* @__PURE__ */ jsxs("div", { className: "invoice-layout", children: [
       /* @__PURE__ */ jsxs("form", { className: "work-form settings-card monthly-email-card", children: [
         /* @__PURE__ */ jsxs("label", { children: [

@@ -25,7 +25,7 @@ function OperationsPage({ clients, payments, businessDate }) {
   );
   const aging = summaries.reduce((result, item) => {
     if (item.balanceDue <= 0) return result;
-    const days = Math.max(0, Math.floor((parseDateInput(businessDate) - item.nextDueDate) / 864e5));
+    const days = Math.max(0, Math.floor((parseDateInput(businessDate).getTime() - item.nextDueDate.getTime()) / 864e5));
     const bucket = days === 0 ? "current" : days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
     result[bucket] += item.balanceDue;
     return result;
@@ -115,4 +115,3 @@ function OperationsPage({ clients, payments, businessDate }) {
 }
 
 export default OperationsPage;
-

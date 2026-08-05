@@ -1,12 +1,12 @@
 const csrfStorageKey = "vss-csrf-token";
-export function saveCsrfToken(token) {
+export function saveCsrfToken(token?: string) {
   try {
     if (token) window.sessionStorage.setItem(csrfStorageKey, token);
     else window.sessionStorage.removeItem(csrfStorageKey);
   } catch {
   }
 }
-export function secureFetch(input, init = {}) {
+export function secureFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   const method = (init.method || "GET").toUpperCase();
   if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
