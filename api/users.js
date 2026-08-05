@@ -6,10 +6,10 @@ const roles = new Set(["admin", "accountant", "staff"]);
 const superAdminUsername = "visualsecsys";
 
 async function ensureSuperAdmin() {
-  const [[existing]] = await database().execute("SELECT COUNT(*) count FROM auth_accounts WHERE role='super_admin'");
+  const [[existing]] = await database().execute("SELECT COUNT(*)::int AS count FROM auth_accounts WHERE role='super_admin'");
   if (!Number(existing.count)) {
     await database().execute(
-      "UPDATE auth_accounts SET role='super_admin',is_active=1 WHERE LOWER(username)=?",
+      "UPDATE auth_accounts SET role='super_admin',is_active=TRUE WHERE LOWER(username)=?",
       [superAdminUsername]
     );
   }
@@ -25,9 +25,9 @@ async function isProtectedSuperAdmin(userId) {
 
 async function listUsers() {
   const [users] = await database().execute(
-    `SELECT id,username,COALESCE(full_name,'') fullName,role,is_active isActive,
-      DATE_FORMAT(last_login_at,'%Y-%m-%d %H:%i') lastLoginAt,
-      DATE_FORMAT(created_at,'%Y-%m-%d') createdAt
+    `SELECT id,username,COALESCE(full_name,'') AS "fullName",role,is_active AS "isActive",
+      TO_CHAR(last_login_at,'YYYY-MM-DD HH24:MI') AS "lastLoginAt",
+      TO_CHAR(created_at,'YYYY-MM-DD') AS "createdAt"
      FROM auth_accounts ORDER BY username`
   );
   return users;

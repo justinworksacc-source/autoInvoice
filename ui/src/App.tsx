@@ -204,7 +204,7 @@ async function requestMonthlyInvoiceStore(payload?: Record<string, unknown>) {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.success) {
-    throw new Error(result.error || "MariaDB monthly invoice request failed.");
+    throw new Error(result.error || "PostgreSQL monthly invoice request failed.");
   }
   return {
     clients: Array.isArray(result.clients)
@@ -377,7 +377,7 @@ function App() {
         setDatabaseNotice("");
       } catch (error) {
         if (!cancelled) {
-          setDatabaseNotice(`MariaDB not connected: ${error instanceof Error ? error.message : "Unknown database error."}`);
+          setDatabaseNotice(`PostgreSQL not connected: ${error instanceof Error ? error.message : "Unknown database error."}`);
         }
       } finally {
         if (!cancelled) setBillingLoaded(true);
@@ -396,7 +396,7 @@ function App() {
       setInvoiceHistory(databaseState.invoiceHistory);
       setDatabaseNotice("");
     } catch (error) {
-      setDatabaseNotice(`MariaDB save failed: ${error instanceof Error ? error.message : "Unknown database error."}`);
+      setDatabaseNotice(`PostgreSQL save failed: ${error instanceof Error ? error.message : "Unknown database error."}`);
     }
   }
   function saveClientToDatabase(client) {

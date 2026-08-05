@@ -212,7 +212,7 @@ function SettingsPage({ businessDate, businessTime, onBusinessDateChange, theme,
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("dt", { children: "Storage" }),
-            /* @__PURE__ */ jsx("dd", { children: "MariaDB" })
+            /* @__PURE__ */ jsx("dd", { children: "Supabase PostgreSQL" })
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("dt", { children: "Manual override" }),

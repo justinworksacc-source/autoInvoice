@@ -5,9 +5,9 @@ async function ensureProfileSchema() {
   await ensureCompany();
   const db = database();
   const [rows] = await db.execute(
-    `SELECT COLUMN_NAME columnName
-       FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'companies'`
+    `SELECT column_name AS "columnName"
+       FROM information_schema.columns
+      WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'companies'`
   );
   const columns = new Set(rows.map((row) => row.columnName));
   if (!columns.has("gmail_sender_email")) {
@@ -21,7 +21,7 @@ async function ensureProfileSchema() {
 
 async function readProfile() {
   const [rows] = await database().execute(
-    `SELECT name companyName, COALESCE(gmail_sender_email, '') gmailAlias
+    `SELECT name AS "companyName", COALESCE(gmail_sender_email, '') AS "gmailAlias"
        FROM companies WHERE id = 1 LIMIT 1`
   );
   return rows[0] || { companyName: "Visual Security Systems", gmailAlias: "" };

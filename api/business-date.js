@@ -16,12 +16,12 @@ function manilaTime() {
 
 async function ensureBusinessTimeColumn(db) {
   const [rows] = await db.execute(
-    `SELECT COLUMN_NAME columnName FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='business_dates' AND COLUMN_NAME='business_time'`
+    `SELECT column_name AS "columnName" FROM information_schema.columns
+      WHERE table_schema=CURRENT_SCHEMA() AND table_name='business_dates' AND column_name='business_time'`
   );
   if (!rows.length) {
     try {
-      await db.execute("ALTER TABLE business_dates ADD COLUMN business_time TIME NOT NULL DEFAULT '00:00:00' AFTER business_date");
+      await db.execute("ALTER TABLE business_dates ADD COLUMN IF NOT EXISTS business_time TIME NOT NULL DEFAULT '00:00:00'");
     } catch (error) {
       if (error?.code !== "ER_DUP_FIELDNAME") throw error;
     }
@@ -47,13 +47,13 @@ export default async function handler(req, res) {
       const source = input.action === "set" ? "manual" : "automatic";
       await db.execute(
         `INSERT INTO business_dates (company_id,business_date,business_time,source) VALUES (1,?,?,?)
-         ON DUPLICATE KEY UPDATE business_date=VALUES(business_date),business_time=VALUES(business_time),source=VALUES(source)`,
+         ON CONFLICT (company_id) DO UPDATE SET business_date=EXCLUDED.business_date,business_time=EXCLUDED.business_time,source=EXCLUDED.source`,
         [value, time, source]
       );
     }
     if (!["GET", "POST"].includes(req.method)) return json(res, 405, { success: false, error: "Method not allowed." });
     const [rows] = await db.execute(
-      "SELECT DATE_FORMAT(business_date,'%Y-%m-%d') business_date,TIME_FORMAT(business_time,'%H:%i') business_time,source FROM business_dates WHERE company_id=1"
+      "SELECT TO_CHAR(business_date,'YYYY-MM-DD') AS business_date,TO_CHAR(business_time,'HH24:MI') AS business_time,source FROM business_dates WHERE company_id=1"
     );
     const today = manilaDate();
     const currentTime = manilaTime();
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     if (shouldSync && (!rows.length || rows[0].business_date !== today || rows[0].business_time !== currentTime || rows[0].source !== "automatic")) {
       await db.execute(
         `INSERT INTO business_dates (company_id,business_date,business_time,source) VALUES (1,?,?,'automatic')
-         ON DUPLICATE KEY UPDATE business_date=VALUES(business_date),business_time=VALUES(business_time),source=VALUES(source)`,
+         ON CONFLICT (company_id) DO UPDATE SET business_date=EXCLUDED.business_date,business_time=EXCLUDED.business_time,source=EXCLUDED.source`,
         [today, currentTime]
       );
     }

@@ -15,9 +15,9 @@ const intValue = (value, fallback, min, max) => Math.min(max, Math.max(min, Numb
 
 async function tableColumns(table) {
   const [rows] = await database().execute(
-    `SELECT COLUMN_NAME columnName
-       FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    `SELECT column_name AS "columnName"
+       FROM information_schema.columns
+      WHERE table_schema = CURRENT_SCHEMA() AND table_name = ?`,
     [table]
   );
   return new Set(rows.map((row) => row.columnName));
@@ -58,27 +58,27 @@ async function readStore() {
     ? " AND archived_at IS NULL"
     : " AND status <> 'archived'";
   const [clients] = await db.execute(
-    `SELECT LOWER(billing_email) id, id databaseId, ${customerNumber} customerNumber,
+    `SELECT LOWER(billing_email) AS id, id AS "databaseId", ${customerNumber} AS "customerNumber",
       customer_name name, billing_email email, ${phone} phone,
-      ${itemType} itemType, ${itemName} itemName, ${itemDescription} itemDescription,
-      COALESCE(billing_address, '') address, invoice_number invoiceNumber,
-      CAST(monthly_amount AS CHAR) amount, COALESCE(DATE_FORMAT(start_date, '%Y-%m-%d'), '') startDate,
-      CAST(billing_day AS CHAR) billingDay, CAST(due_after_days AS CHAR) dueAfterDays,
-      COALESCE(DATE_FORMAT(last_sent_at, '%b %e, %Y, %h:%i %p'), 'Not sent yet') lastSent,
-      COALESCE(DATE_FORMAT(last_sent_due_date, '%Y-%m-%d'), '') lastSentDueDate, status
+      ${itemType} AS "itemType", ${itemName} AS "itemName", ${itemDescription} AS "itemDescription",
+      COALESCE(billing_address, '') AS address, invoice_number AS "invoiceNumber",
+      monthly_amount::text AS amount, COALESCE(TO_CHAR(start_date, 'YYYY-MM-DD'), '') AS "startDate",
+      billing_day::text AS "billingDay", due_after_days::text AS "dueAfterDays",
+      COALESCE(TO_CHAR(last_sent_at, 'Mon FMDD, YYYY, HH12:MI AM'), 'Not sent yet') AS "lastSent",
+      COALESCE(TO_CHAR(last_sent_due_date, 'YYYY-MM-DD'), '') AS "lastSentDueDate", status
      FROM monthly_invoice_clients WHERE company_id = 1${activeOnly} ORDER BY id`
   );
   const [payments] = await db.execute(
-    `SELECT CONCAT('db-', id) id, LOWER(billing_email) clientId, CAST(amount AS CHAR) amount,
-      DATE_FORMAT(payment_date, '%Y-%m-%d') paidAt, method,
-      COALESCE(reference_number, '') referenceNumber, COALESCE(notes, '') notes,
-      DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ') createdAt
+    `SELECT CONCAT('db-', id) AS id, LOWER(billing_email) AS "clientId", amount::text AS amount,
+      TO_CHAR(payment_date, 'YYYY-MM-DD') AS "paidAt", method,
+      COALESCE(reference_number, '') AS "referenceNumber", COALESCE(notes, '') AS notes,
+      TO_CHAR(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "createdAt"
      FROM monthly_invoice_payments WHERE company_id = 1 ORDER BY payment_date, id`
   );
   const [invoiceHistory] = await db.execute(
-    `SELECT CONCAT('db-', id) id, LOWER(client_email) clientId, invoice_number invoiceNumber,
-      recipient, CAST(amount AS CHAR) amount, COALESCE(DATE_FORMAT(due_date,'%Y-%m-%d'),'') dueDate,
-      DATE_FORMAT(sent_at,'%Y-%m-%dT%H:%i:%sZ') sentAt, delivery
+    `SELECT CONCAT('db-', id) AS id, LOWER(client_email) AS "clientId", invoice_number AS "invoiceNumber",
+      recipient, amount::text AS amount, COALESCE(TO_CHAR(due_date,'YYYY-MM-DD'),'') AS "dueDate",
+      TO_CHAR(sent_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS "sentAt", delivery
      FROM invoice_send_history WHERE company_id=1 ORDER BY sent_at DESC,id DESC LIMIT 500`
   );
   return { clients: clients.map((client) => ({ ...client, status: statusName(client.status) })), payments, invoiceHistory };
