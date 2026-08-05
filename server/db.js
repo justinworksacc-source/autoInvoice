@@ -10,6 +10,17 @@ function postgresUrl() {
     || process.env.DATABASE_URL;
 }
 
+function verifiedConnection(connectionString) {
+  const ca = String(process.env.DB_SSL_CA || "").replace(/\\n/g, "\n").trim();
+  if (!ca) {
+    throw Object.assign(new Error("Set DB_SSL_CA in Vercel to the Supabase server root certificate."), { status: 503 });
+  }
+  const url = new URL(connectionString);
+  // Prevent a URL sslmode from overriding the explicitly verified CA below.
+  url.searchParams.delete("sslmode");
+  return { connectionString: url.toString(), ssl: { ca, rejectUnauthorized: true } };
+}
+
 function placeholders(sql) {
   let index = 0;
   let quote = null;
@@ -49,11 +60,10 @@ export function database() {
       throw Object.assign(new Error("Connect Supabase to Vercel or set SUPABASE_DB_URL to its PostgreSQL connection string."), { status: 503 });
     }
     pool = new Pool({
-      connectionString,
+      ...verifiedConnection(connectionString),
       max: 3,
       idleTimeoutMillis: 10_000,
-      connectionTimeoutMillis: 10_000,
-      ssl: process.env.DB_SSL === "false" ? false : { rejectUnauthorized: false }
+      connectionTimeoutMillis: 10_000
     });
   }
   const db = adapter(pool);
