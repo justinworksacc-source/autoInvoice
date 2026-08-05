@@ -12,11 +12,11 @@ export default async function handler(req, res) {
       const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "unknown").split(",")[0].slice(0, 45);
       const db = database();
       const [[attempts]] = await db.execute(
-        "SELECT COUNT(*) count FROM auth_login_attempts WHERE username = ? AND ip_address = ? AND attempted_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)",
+        "SELECT COUNT(*)::int AS count FROM auth_login_attempts WHERE username = ? AND ip_address = ? AND attempted_at >= NOW() - INTERVAL '15 minutes'",
         [username, ip]
       );
       if (Number(attempts.count) >= 5) throw Object.assign(new Error("Too many login attempts. Try again in 15 minutes."), { status: 429 });
-      const [rows] = await db.execute("SELECT id, username, password_hash, role FROM auth_accounts WHERE username = ? AND is_active = 1 LIMIT 1", [username]);
+      const [rows] = await db.execute("SELECT id, username, password_hash, role FROM auth_accounts WHERE username = ? AND is_active = TRUE LIMIT 1", [username]);
       const account = rows[0];
       if (!account || !(await bcrypt.compare(password, account.password_hash))) {
         await db.execute("INSERT INTO auth_login_attempts (username, ip_address) VALUES (?, ?)", [username, ip]);
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       if (!session) return json(res, 401, { success: false, error: "Authentication required." });
       await ensureAuthSchema();
       const [rows] = await database().execute(
-        "SELECT id,username,role FROM auth_accounts WHERE id=? AND is_active=1 LIMIT 1",
+        "SELECT id,username,role FROM auth_accounts WHERE id=? AND is_active=TRUE LIMIT 1",
         [session.userId]
       );
       const account = rows[0];
