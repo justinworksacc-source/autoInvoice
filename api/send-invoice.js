@@ -6,7 +6,7 @@ function text(value, fallback = "") {
   return String(value || fallback).trim();
 }
 
-function createInvoicePdf(invoice) {
+export function createInvoicePdf(invoice) {
   return new Promise((resolve, reject) => {
     const document = new PDFDocument({ size: "A4", margin: 50, info: {
       Title: `Invoice ${text(invoice.invoice_number)}`,
@@ -78,27 +78,34 @@ function createInvoicePdf(invoice) {
   });
 }
 
+export async function deliverInvoice(invoice) {
+  const webhook = process.env.SEND_INVOICE_WEBHOOK_URL;
+  if (!webhook) throw Object.assign(new Error("Set SEND_INVOICE_WEBHOOK_URL in Vercel to enable invoice delivery."), { status: 503 });
+  const invoicePdf = await createInvoicePdf(invoice);
+  const attachment = {
+    content_base64: invoicePdf.toString("base64"),
+    content_type: "application/pdf",
+    file_name: `${text(invoice.invoice_number, "invoice").replace(/[^a-zA-Z0-9._-]/g, "_")}.pdf`
+  };
+  const response = await fetch(webhook, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Webhook-Secret": process.env.SEND_INVOICE_SECRET || "" },
+    body: JSON.stringify({ secret: process.env.SEND_INVOICE_SECRET || "", invoice, attachment })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.success === false) {
+    throw Object.assign(new Error(result.error || `Invoice delivery returned HTTP ${response.status}.`), { status: 502 });
+  }
+  return result;
+}
+
 export default async function handler(req, res) {
   try {
     requireSession(req);
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const invoice = await body(req);
     if (!invoice.to || !invoice.invoice_number) throw Object.assign(new Error("Recipient and invoice number are required."), { status: 422 });
-    const webhook = process.env.SEND_INVOICE_WEBHOOK_URL;
-    if (!webhook) throw Object.assign(new Error("Set SEND_INVOICE_WEBHOOK_URL in Vercel to enable invoice delivery."), { status: 503 });
-    const invoicePdf = await createInvoicePdf(invoice);
-    const attachment = {
-      content_base64: invoicePdf.toString("base64"),
-      content_type: "application/pdf",
-      file_name: `${text(invoice.invoice_number, "invoice").replace(/[^a-zA-Z0-9._-]/g, "_")}.pdf`
-    };
-    const response = await fetch(webhook, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Webhook-Secret": process.env.SEND_INVOICE_SECRET || "" },
-      body: JSON.stringify({ secret: process.env.SEND_INVOICE_SECRET || "", invoice, attachment })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || result.success === false) throw Object.assign(new Error(result.error || "Invoice delivery webhook failed."), { status: 502 });
+    const result = await deliverInvoice(invoice);
     await ensureInvoiceHistorySchema();
     const email = text(invoice.to).toLowerCase();
     const amount = Number(text(invoice.amount, "0").replace(/[^0-9.-]/g, "")) || 0;

@@ -38,6 +38,7 @@ const autoSendEnabledStorageKey = "ai-accountant-ceo-auto-send-enabled";
 const monthlyInvoicesEndpoint = "/api/monthly-invoices";
 const businessDateEndpoint = "/api/business-date";
 const businessProfileEndpoint = "/api/business-profile";
+const automationSettingsEndpoint = "/api/automation-settings";
 const authEndpoint = "/api/auth";
 const legacySampleClientId = "customer@example.com";
 function formatDateInput(date = /* @__PURE__ */ new Date()) {
@@ -228,6 +229,18 @@ async function requestBusinessProfile(profile?: { companyName: string; gmailAlia
   }
   return { ...defaultBusinessProfile, ...result.profile };
 }
+async function requestAutomationSettings(enabled?: boolean) {
+  const response = await secureFetch(automationSettingsEndpoint, enabled === void 0 ? void 0 : {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success || typeof result.enabled !== "boolean") {
+    throw new Error(result.error || "Automation settings request failed.");
+  }
+  return result.enabled;
+}
 function App() {
   const [clients, setClients] = useState(() => loadMonthlyInvoiceClients());
   const [payments, setPayments] = useState(() => loadInvoicePayments());
@@ -301,6 +314,12 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(autoSendEnabledStorageKey, String(autoSendEnabled));
   }, [autoSendEnabled]);
+  useEffect(() => {
+    if (!authChecked || !session) return;
+    requestAutomationSettings().then(setAutoSendEnabled).catch((error) => {
+      setDatabaseNotice(`Automation settings could not be loaded: ${error instanceof Error ? error.message : "Unknown error."}`);
+    });
+  }, [authChecked, session]);
   useEffect(() => {
     if (!authChecked || !session) {
       return;
@@ -431,6 +450,13 @@ function App() {
       setBusinessTime(savedTime);
     }).catch((error) => {
       setDatabaseNotice(`Business date and time save failed: ${error instanceof Error ? error.message : "Unknown error."}`);
+    });
+  }
+  function saveAutoSendEnabled(enabled) {
+    setAutoSendEnabled(enabled);
+    void requestAutomationSettings(enabled).then(setAutoSendEnabled).catch((error) => {
+      setAutoSendEnabled((current) => !current);
+      setDatabaseNotice(`Automation setting could not be saved: ${error instanceof Error ? error.message : "Unknown error."}`);
     });
   }
   async function handleLogin(username, password) {
@@ -593,7 +619,7 @@ function App() {
                 theme,
                 onThemeChange: setTheme,
                 autoSendEnabled,
-                onAutoSendChange: setAutoSendEnabled
+                onAutoSendChange: saveAutoSendEnabled
               }
             )
           }
@@ -612,7 +638,7 @@ function App() {
                 setClients,
                 saveClientToDatabase,
                 autoSendEnabled,
-                onAutoSendChange: setAutoSendEnabled
+                onAutoSendChange: saveAutoSendEnabled
               }
             )
           }

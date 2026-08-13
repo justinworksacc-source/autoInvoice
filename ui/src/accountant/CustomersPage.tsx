@@ -203,6 +203,9 @@ function CustomersPage({
     setClientPage(1);
   }, [clientSearchQuery, clientStatusFilter, clientSort, clientPageSize]);
   useEffect(() => {
+    if (!autoSendEnabled) {
+      return;
+    }
     const currentBusinessDate = parseDateInput(businessDate);
     const currentAttemptKeys = loadAutoSendAttemptKeys();
     const currentAttemptKeySet = new Set(currentAttemptKeys);
