@@ -25,7 +25,10 @@ function OperationsPage({ clients, payments, businessDate }) {
   );
   const aging = summaries.reduce((result, item) => {
     if (item.balanceDue <= 0) return result;
-    const days = Math.max(0, Math.floor((parseDateInput(businessDate).getTime() - item.nextDueDate.getTime()) / 864e5));
+    const oldestUnpaidInvoice = item.invoices.find((invoice) => invoice.balanceDue > 0);
+    const days = oldestUnpaidInvoice
+      ? Math.max(0, Math.floor((parseDateInput(businessDate).getTime() - oldestUnpaidInvoice.dueDate.getTime()) / 864e5))
+      : 0;
     const bucket = days === 0 ? "current" : days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
     result[bucket] += item.balanceDue;
     return result;
@@ -104,7 +107,7 @@ function OperationsPage({ clients, payments, businessDate }) {
     jsxs("div", { className: "operations-grid", children: [
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Notification queue" }),
-        data.notifications?.length ? jsx("div", { className: "audit-list", children: data.notifications.map((item) => jsxs("div", { children: [jsx("strong", { children: item.type.replaceAll("_", " ") }), jsx("span", { children: item.recipient }), jsx("small", { children: `${item.status} · ${item.scheduledAt}` })] }, item.id)) }) : jsx("p", { children: "No queued reminders." })
+        data.notifications?.length ? jsx("div", { className: "audit-list", children: data.notifications.map((item) => jsxs("div", { children: [jsx("strong", { children: String(item.type || "notification").replaceAll("_", " ") }), jsx("span", { children: item.recipient || "No recipient" }), jsx("small", { children: `${item.status || "unknown"} · ${item.scheduledAt || "Not scheduled"}` })] }, item.id)) }) : jsx("p", { children: "No queued reminders." })
       ] }),
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Audit history" }),
