@@ -2614,10 +2614,62 @@ pre {
   padding: 1.25rem 0 0.25rem;
 }
 
+.overdue-customers-panel {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.overdue-customer-list {
+  display: grid;
+}
+
+.overdue-customer-list > div {
+  align-items: center;
+  border-top: 1px solid rgba(248, 113, 113, 0.18);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 0.8fr) minmax(120px, 0.7fr) auto;
+  padding: 0.85rem 0;
+}
+
+.overdue-customer-list > div > span:not(.overdue-days-badge) {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.overdue-customer-list small {
+  color: #91a2cf;
+}
+
+.overdue-customer-list strong {
+  color: #ffffff;
+}
+
+.overdue-days-badge {
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: 999px;
+  color: #fca5a5;
+  font-size: 0.75rem;
+  font-weight: 850;
+  padding: 0.45rem 0.65rem;
+  white-space: nowrap;
+}
+
 [data-theme='light'] .dashboard-date-filter span,
 [data-theme='light'] .sent-invoice-list small,
+[data-theme='light'] .overdue-customer-list small,
 [data-theme='light'] .dashboard-filter-empty {
   color: #687694;
+}
+
+[data-theme='light'] .overdue-customer-list strong {
+  color: #172033;
+}
+
+[data-theme='light'] .overdue-days-badge {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
 }
 
 [data-theme='light'] .sent-invoice-list > div {
@@ -2632,8 +2684,13 @@ pre {
     flex-direction: column;
   }
 
-  .sent-invoice-list > div {
+  .sent-invoice-list > div,
+  .overdue-customer-list > div {
     grid-template-columns: 1fr;
+  }
+
+  .overdue-days-badge {
+    justify-self: start;
   }
 }
 

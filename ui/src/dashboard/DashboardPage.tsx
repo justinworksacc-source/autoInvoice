@@ -66,11 +66,25 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
   const [sentDateFilter, setSentDateFilter] = useState(loadSentDateFilter);
   const [selectedSentDate, setSelectedSentDate] = useState(loadSelectedSentDate);
   const businessDateValue = parseDateInput(businessDate);
-  const paymentSummaries = clients.map((client) => getClientPaymentSummary(client, payments, businessDateValue));
+  const clientSummaries = clients.map((client) => ({
+    client,
+    summary: getClientPaymentSummary(client, payments, businessDateValue)
+  }));
+  const paymentSummaries = clientSummaries.map(({ summary }) => summary);
   const monthlyTotal = clients.reduce((total, client) => total + Number(client.amount.replace(/[^0-9.-]/g, "")), 0);
   const outstandingBalance = paymentSummaries.reduce((total, summary) => total + summary.balanceDue, 0);
   const recordedPayments = payments.reduce((total, payment) => total + Number(payment.amount.replace(/[^0-9.-]/g, "")), 0);
   const overdueClients = paymentSummaries.filter((summary) => summary.overdueInvoiceCount > 0).length;
+  const overdueCustomerRows = clientSummaries.flatMap(({ client, summary }) => {
+    const overdueInvoices = summary.invoices.filter((invoice) => invoice.balanceDue > 0 && invoice.dueDate < businessDateValue);
+    if (overdueInvoices.length === 0) return [];
+    const oldestDueDate = overdueInvoices.reduce(
+      (oldest, invoice) => invoice.dueDate < oldest ? invoice.dueDate : oldest,
+      overdueInvoices[0].dueDate
+    );
+    const daysOverdue = Math.max(1, Math.floor((businessDateValue.getTime() - oldestDueDate.getTime()) / (24 * 60 * 60 * 1e3)));
+    return [{ client, balanceDue: summary.balanceDue, oldestDueDate, daysOverdue }];
+  }).sort((left, right) => right.daysOverdue - left.daysOverdue || right.balanceDue - left.balanceDue);
   const scheduledCount = clients.filter((client) => client.status === "Scheduled").length;
   const draftCount = clients.filter((client) => client.status === "Draft").length;
   const needsApprovalCount = clients.filter((client) => client.status === "Needs approval").length;
@@ -164,6 +178,31 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
         /* @__PURE__ */ jsx("strong", { children: overdueClients }),
         /* @__PURE__ */ jsx("small", { children: overdueClients > 0 ? "Collection review required" : "No overdue accounts" })
       ] })
+    ] }),
+    /* @__PURE__ */ jsxs("section", { className: "dashboard-panel overdue-customers-panel", children: [
+      /* @__PURE__ */ jsxs("div", { className: "section-heading", children: [
+        /* @__PURE__ */ jsx("h3", { children: "Overdue Customers" }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          overdueCustomerRows.length,
+          " customer",
+          overdueCustomerRows.length === 1 ? "" : "s"
+        ] })
+      ] }),
+      overdueCustomerRows.length > 0 ? /* @__PURE__ */ jsx("div", { className: "overdue-customer-list", children: overdueCustomerRows.map(({ client, balanceDue, oldestDueDate, daysOverdue }) => /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("strong", { children: client.name }),
+          /* @__PURE__ */ jsx("small", { children: client.email })
+        ] }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("small", { children: "Oldest due date" }),
+          /* @__PURE__ */ jsx("strong", { children: formatDueDate(oldestDueDate) })
+        ] }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("small", { children: "Balance due" }),
+          /* @__PURE__ */ jsx("strong", { children: formatAmount(balanceDue) })
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "overdue-days-badge", children: `${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue` })
+      ] }, client.id)) }) : /* @__PURE__ */ jsx("p", { className: "dashboard-filter-empty", children: "No customers are overdue." })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "dashboard-layout", children: [
       /* @__PURE__ */ jsxs("article", { className: "dashboard-panel dashboard-main-panel", children: [
