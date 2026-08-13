@@ -9,6 +9,7 @@ import {
   formatAmount,
   formatDueDate,
   getClientCycleStartDate,
+  getClientPaymentSummary,
   getCycleInvoiceNumber,
   getDaysUntilDue,
   getNextDueDate,
@@ -257,13 +258,28 @@ function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [billingLoaded, setBillingLoaded] = useState(false);
-  const upcomingReminders = useMemo(() => {
+  const paymentReminders = useMemo(() => {
     const referenceDate = parseDateInput(businessDate);
     return clients.flatMap((client) => {
+      const summary = getClientPaymentSummary(client, payments, referenceDate);
+      const oldestOverdueInvoice = summary.invoices.find(
+        (invoice) => invoice.balanceDue > 0 && invoice.dueDate < referenceDate
+      );
+      if (oldestOverdueInvoice) {
+        const daysOverdue = Math.max(1, Math.floor((referenceDate.getTime() - oldestOverdueInvoice.dueDate.getTime()) / 864e5));
+        return [{
+          clientId: client.id,
+          customerName: client.name,
+          invoiceNumber: oldestOverdueInvoice.invoiceNumber,
+          dueDate: oldestOverdueInvoice.dueDate,
+          daysUntilDue: -daysOverdue,
+          amount: summary.balanceDue,
+          isOverdue: true
+        }];
+      }
       const dueDate = getNextDueDate(client, referenceDate);
-      const dueDateKey = formatDateInput(dueDate);
       const daysUntilDue = getDaysUntilDue(client, referenceDate);
-      if (daysUntilDue < 0 || daysUntilDue > 7 || client.lastSentDueDate === dueDateKey) return [];
+      if (daysUntilDue < 0 || daysUntilDue > 7) return [];
       const cycleStartDate = getClientCycleStartDate(client, referenceDate);
       return [{
         clientId: client.id,
@@ -271,10 +287,12 @@ function App() {
         invoiceNumber: getCycleInvoiceNumber(client, cycleStartDate),
         dueDate,
         daysUntilDue,
-        amount: parseAmount(client.amount)
+        amount: parseAmount(client.amount),
+        isOverdue: false
       }];
-    }).sort((first, second) => first.daysUntilDue - second.daysUntilDue);
-  }, [businessDate, clients]);
+    }).sort((first, second) => Number(second.isOverdue) - Number(first.isOverdue) || first.daysUntilDue - second.daysUntilDue);
+  }, [businessDate, clients, payments]);
+  const overdueReminderCount = paymentReminders.filter((reminder) => reminder.isOverdue).length;
   useEffect(() => {
     secureFetch(authEndpoint).then(async (response) => {
       const result = await response.json();
@@ -543,23 +561,23 @@ function App() {
       /* @__PURE__ */ jsxs("div", { className: "sidebar-footer", children: [
         /* @__PURE__ */ jsxs("div", { className: "account-links", children: [
           /* @__PURE__ */ jsxs("div", { className: "reminder-menu", children: [
-            /* @__PURE__ */ jsxs("button", { type: "button", className: `reminder-button ${upcomingReminders.length ? "has-reminders" : ""}`, onClick: () => setRemindersOpen((open) => !open), "aria-expanded": remindersOpen, "aria-label": upcomingReminders.length ? `${upcomingReminders.length} invoices due within 7 days` : "No invoices due within 7 days", children: [
+            /* @__PURE__ */ jsxs("button", { type: "button", className: `reminder-button ${paymentReminders.length ? "has-reminders" : ""} ${overdueReminderCount ? "has-overdue" : ""}`, onClick: () => setRemindersOpen((open) => !open), "aria-expanded": remindersOpen, "aria-label": paymentReminders.length ? `${paymentReminders.length} payment reminders, ${overdueReminderCount} overdue` : "No payment reminders", children: [
               /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" }) }),
-              upcomingReminders.length ? /* @__PURE__ */ jsx("span", { className: "reminder-count", children: upcomingReminders.length > 99 ? "99+" : upcomingReminders.length }) : null
+              paymentReminders.length ? /* @__PURE__ */ jsx("span", { className: `reminder-count ${overdueReminderCount ? "overdue" : ""}`, children: paymentReminders.length > 99 ? "99+" : paymentReminders.length }) : null
             ] }),
             remindersOpen ? /* @__PURE__ */ jsxs("div", { className: "reminder-popover", children: [
               /* @__PURE__ */ jsxs("div", { className: "reminder-popover-heading", children: [
                 /* @__PURE__ */ jsxs("div", { children: [
                   /* @__PURE__ */ jsx("strong", { children: "Payment reminders" }),
-                  /* @__PURE__ */ jsx("small", { children: "Invoices due within the next 7 days" })
+                  /* @__PURE__ */ jsx("small", { children: overdueReminderCount ? `${overdueReminderCount} overdue · upcoming due within 7 days` : "Upcoming payments due within 7 days" })
                 ] }),
-                /* @__PURE__ */ jsx("span", { children: upcomingReminders.length })
+                /* @__PURE__ */ jsx("span", { className: overdueReminderCount ? "overdue" : "", children: paymentReminders.length })
               ] }),
-              upcomingReminders.length ? /* @__PURE__ */ jsx("div", { className: "reminder-list", children: upcomingReminders.map((reminder) => /* @__PURE__ */ jsxs(Link, { to: "/customers", onClick: () => {
+              paymentReminders.length ? /* @__PURE__ */ jsx("div", { className: "reminder-list", children: paymentReminders.map((reminder) => /* @__PURE__ */ jsxs(Link, { className: reminder.isOverdue ? "overdue" : "", to: "/customers", onClick: () => {
                 setRemindersOpen(false);
                 setMobileNavOpen(false);
               }, children: [
-                /* @__PURE__ */ jsx("span", { className: "reminder-alert-icon", "aria-hidden": "true", children: "!" }),
+                /* @__PURE__ */ jsx("span", { className: `reminder-alert-icon ${reminder.isOverdue ? "overdue" : ""}`, "aria-hidden": "true", children: "!" }),
                 /* @__PURE__ */ jsxs("div", { children: [
                   /* @__PURE__ */ jsx("strong", { children: reminder.customerName }),
                   /* @__PURE__ */ jsxs("small", { children: [
@@ -568,15 +586,15 @@ function App() {
                     formatDueDate(reminder.dueDate)
                   ] }),
                   /* @__PURE__ */ jsxs("span", { children: [
-                    reminder.daysUntilDue === 0 ? "Due today" : `${reminder.daysUntilDue} days until due`,
+                    reminder.isOverdue ? `${Math.abs(reminder.daysUntilDue)} day${Math.abs(reminder.daysUntilDue) === 1 ? "" : "s"} overdue` : reminder.daysUntilDue === 0 ? "Due today" : `${reminder.daysUntilDue} days until due`,
                     " \xB7 ",
                     formatAmount(reminder.amount)
                   ] })
                 ] })
               ] }, reminder.clientId)) }) : /* @__PURE__ */ jsxs("div", { className: "reminder-empty", children: [
                 /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: "\u2713" }),
-                /* @__PURE__ */ jsx("strong", { children: "No upcoming reminders" }),
-                /* @__PURE__ */ jsx("p", { children: "Customers will appear here 7 days before their invoice is due." })
+                /* @__PURE__ */ jsx("strong", { children: "No payment reminders" }),
+                /* @__PURE__ */ jsx("p", { children: "There are no overdue customers or payments due within seven days." })
               ] })
             ] }) : null
           ] }),

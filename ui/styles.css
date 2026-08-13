@@ -449,6 +449,12 @@ a {
   color: #dbeafe;
 }
 
+.reminder-button.has-overdue {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(248, 113, 113, 0.52);
+  color: #fecaca;
+}
+
 .reminder-button svg {
   fill: none;
   height: 21px;
@@ -475,6 +481,10 @@ a {
   position: absolute;
   right: -5px;
   top: -5px;
+}
+
+.reminder-count.overdue {
+  background: #dc2626;
 }
 
 .reminder-popover {
@@ -529,6 +539,11 @@ a {
   padding: 0.3rem 0.55rem;
 }
 
+.reminder-popover-heading > span.overdue {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+
 .reminder-list {
   max-height: 360px;
   overflow-y: auto;
@@ -548,6 +563,14 @@ a {
   background: rgba(37, 99, 235, 0.1);
 }
 
+.reminder-list > a.overdue {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.reminder-list > a.overdue:hover {
+  background: rgba(239, 68, 68, 0.12);
+}
+
 .reminder-alert-icon {
   align-items: center;
   background: rgba(245, 158, 11, 0.14);
@@ -560,6 +583,11 @@ a {
   height: 28px;
   justify-content: center;
   width: 28px;
+}
+
+.reminder-alert-icon.overdue {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
 }
 
 .reminder-list a > div {
@@ -582,6 +610,10 @@ a {
   color: #fbbf24;
   font-size: 0.7rem;
   font-weight: 750;
+}
+
+.reminder-list > a.overdue > div > span {
+  color: #f87171;
 }
 
 .reminder-empty {
