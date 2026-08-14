@@ -1,4 +1,5 @@
 import { database } from "../server/db.js";
+import { processAutomaticInvoices } from "../server/automatic-invoices.js";
 import { fail, json } from "../server/security.js";
 
 export default async function handler(req, res) {
@@ -6,6 +7,7 @@ export default async function handler(req, res) {
     const expected = String(process.env.CRON_SECRET || "");
     const received = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!expected || received !== expected) return json(res, 401, { success: false, error: "Invalid cron authorization." });
+    const automaticInvoices = await processAutomaticInvoices();
     const webhook = process.env.SEND_INVOICE_WEBHOOK_URL;
     if (!webhook) throw Object.assign(new Error("Set SEND_INVOICE_WEBHOOK_URL before processing notifications."), { status: 503 });
     const [items] = await database().execute(
@@ -31,9 +33,8 @@ export default async function handler(req, res) {
         );
       }
     }
-    return json(res, 200, { success: true, processed: items.length, sent });
+    return json(res, 200, { success: true, automaticInvoices, notifications: { processed: items.length, sent } });
   } catch (error) {
     return fail(res, error);
   }
 }
-

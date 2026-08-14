@@ -25,10 +25,11 @@ function cookies(req) {
 }
 
 export function createSession(res, user) {
+  const role = ["super_admin", "admin", "accountant", "staff"].includes(user.role) ? user.role : "staff";
   const session = {
     userId: Number(user.id),
     username: user.username,
-    role: user.role || "admin",
+    role,
     csrf: crypto.randomBytes(32).toString("hex"),
     expires: Date.now() + 12 * 60 * 60 * 1000
   };
@@ -39,7 +40,7 @@ export function createSession(res, user) {
 }
 
 export function requireRole(session, roles) {
-  if (!roles.includes(session.role || "admin")) {
+  if (session.role !== "super_admin" && !roles.includes(session.role)) {
     throw Object.assign(new Error("You do not have permission to perform this action."), { status: 403 });
   }
   return session;
@@ -78,7 +79,11 @@ export function requireSession(req, { csrf = true } = {}) {
 }
 
 export function json(res, status, payload) {
-  res.status(status).setHeader("Cache-Control", "no-store").json(payload);
+  res.status(status)
+    .setHeader("Cache-Control", "no-store")
+    .setHeader("X-Content-Type-Options", "nosniff")
+    .setHeader("Referrer-Policy", "no-referrer")
+    .json(payload);
 }
 
 export function fail(res, error) {
@@ -104,6 +109,12 @@ export function fail(res, error) {
 
 export async function body(req) {
   if (req.body && typeof req.body === "object") return req.body;
-  if (typeof req.body === "string") return JSON.parse(req.body || "{}");
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch {
+      throw Object.assign(new Error("The request body must contain valid JSON."), { status: 400 });
+    }
+  }
   return {};
 }

@@ -19,35 +19,35 @@ async function overview() {
   const db = database();
   const [[totals]] = await db.execute(
     `SELECT
-       COUNT(*) customer_count,
-       SUM(archived_at IS NULL) active_customer_count,
-       COALESCE(SUM(CASE WHEN archived_at IS NULL THEN monthly_amount ELSE 0 END),0) monthly_billing
+       COUNT(*)::int AS customer_count,
+       COUNT(*) FILTER (WHERE archived_at IS NULL)::int AS active_customer_count,
+       COALESCE(SUM(CASE WHEN archived_at IS NULL THEN monthly_amount ELSE 0 END),0) AS monthly_billing
      FROM monthly_invoice_clients WHERE company_id=1`
   );
   const [[payments]] = await db.execute(
-    `SELECT COALESCE(SUM(amount-refunded_amount),0) collected,
-       COALESCE(SUM(refunded_amount),0) refunded,
-       COUNT(*) payment_count
+    `SELECT COALESCE(SUM(amount-refunded_amount),0) AS collected,
+       COALESCE(SUM(refunded_amount),0) AS refunded,
+       COUNT(*)::int AS payment_count
      FROM monthly_invoice_payments WHERE company_id=1`
   );
   const [invoices] = await db.execute(
-    `SELECT c.id, c.invoice_number invoiceNumber, c.billing_period billingPeriod,
-       DATE_FORMAT(c.due_date,'%Y-%m-%d') dueDate, c.total_amount totalAmount,
-       c.paid_amount paidAmount, c.balance_due balanceDue, c.status,
-       p.customer_name customerName, p.billing_email email
+    `SELECT c.id, c.invoice_number AS "invoiceNumber", c.billing_period AS "billingPeriod",
+       TO_CHAR(c.due_date,'YYYY-MM-DD') AS "dueDate", c.total_amount AS "totalAmount",
+       c.paid_amount AS "paidAmount", c.balance_due AS "balanceDue", c.status,
+       p.customer_name AS "customerName", p.billing_email AS email
      FROM monthly_invoice_cycles c
      JOIN monthly_invoice_clients p ON p.id=c.client_id
      WHERE c.company_id=1 ORDER BY c.due_date DESC, c.id DESC LIMIT 250`
   );
   const [notifications] = await db.execute(
     `SELECT n.id,n.notification_type type,n.channel,n.recipient,n.subject,n.status,n.attempts,
-       DATE_FORMAT(n.scheduled_at,'%Y-%m-%d %H:%i') scheduledAt,
-       DATE_FORMAT(n.sent_at,'%Y-%m-%d %H:%i') sentAt
+       TO_CHAR(n.scheduled_at,'YYYY-MM-DD HH24:MI') AS "scheduledAt",
+       TO_CHAR(n.sent_at,'YYYY-MM-DD HH24:MI') AS "sentAt"
      FROM billing_notifications n WHERE n.company_id=1 ORDER BY n.id DESC LIMIT 100`
   );
   const [activity] = await db.execute(
-    `SELECT id,action,entity_type entityType,entity_id entityId,
-       DATE_FORMAT(created_at,'%Y-%m-%d %H:%i') createdAt
+    `SELECT id,action,entity_type AS "entityType",entity_id AS "entityId",
+       TO_CHAR(created_at,'YYYY-MM-DD HH24:MI') AS "createdAt"
      FROM audit_logs WHERE company_id=1 ORDER BY id DESC LIMIT 100`
   );
   return { totals, payments, invoices, notifications, activity };
@@ -62,8 +62,10 @@ async function updateInvoice(session, input) {
   }
   const cancelled = status === "cancelled";
   const [result] = await database().execute(
-    `UPDATE monthly_invoice_cycles SET status=?, viewed_at=IF(?='viewed',COALESCE(viewed_at,NOW()),viewed_at),
-       cancelled_at=IF(?,NOW(),NULL),cancelled_reason=IF(?,?,NULL),updated_at=NOW()
+    `UPDATE monthly_invoice_cycles SET status=?,
+       viewed_at=CASE WHEN ?='viewed' THEN COALESCE(viewed_at,NOW()) ELSE viewed_at END,
+       cancelled_at=CASE WHEN ? THEN NOW() ELSE NULL END,
+       cancelled_reason=CASE WHEN ? THEN ? ELSE NULL END,updated_at=NOW()
      WHERE id=? AND company_id=1`,
     [status, status, cancelled, cancelled, String(input.reason || "").slice(0, 500), id]
   );
@@ -155,6 +157,7 @@ async function portalLink(session, input, req) {
 export default async function handler(req, res) {
   try {
     const session = requireSession(req);
+    requireRole(session, ["admin", "accountant"]);
     if (req.method === "GET") return json(res, 200, { success: true, ...(await overview()) });
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const input = await body(req);
@@ -169,4 +172,3 @@ export default async function handler(req, res) {
     return fail(res, error);
   }
 }
-

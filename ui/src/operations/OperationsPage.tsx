@@ -6,13 +6,19 @@ import { formatAmount, getClientPaymentSummary, parseAmount, parseDateInput } fr
 const endpoint = "/api/billing-operations";
 const invoiceStatuses = ["draft", "sent", "viewed", "partially_paid", "paid", "overdue", "cancelled"];
 
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function downloadCsv(filename, rows) {
-  const csv = rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+  const csv = `\uFEFF${rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n")}`;
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   link.download = filename;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
 function OperationsPage({ clients, payments, businessDate }) {
@@ -25,20 +31,30 @@ function OperationsPage({ clients, payments, businessDate }) {
   );
   const aging = summaries.reduce((result, item) => {
     if (item.balanceDue <= 0) return result;
-    const days = Math.max(0, Math.floor((parseDateInput(businessDate) - item.nextDueDate) / 864e5));
+    const oldestUnpaidInvoice = item.invoices.find((invoice) => invoice.balanceDue > 0);
+    const days = oldestUnpaidInvoice
+      ? Math.max(0, Math.floor((parseDateInput(businessDate).getTime() - oldestUnpaidInvoice.dueDate.getTime()) / 864e5))
+      : 0;
     const bucket = days === 0 ? "current" : days <= 30 ? "1-30" : days <= 60 ? "31-60" : days <= 90 ? "61-90" : "90+";
     result[bucket] += item.balanceDue;
     return result;
   }, { current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
+  const exportDate = businessDate || new Date().toISOString().slice(0, 10);
+  const customerNames = useMemo(() => new Map(clients.map((client) => [client.id, client.name])), [clients]);
+  const reportInvoices = useMemo(() => summaries.flatMap(({ client, invoices }) => invoices.map((invoice) => ({
+    ...invoice,
+    customerName: client.name,
+    customerEmail: client.email
+  }))), [summaries]);
 
   async function load() {
     try {
       const response = await secureFetch(endpoint);
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) throw new Error(result.error || "Unable to load operations.");
       setData(result);
     } catch (error) {
-      setNotice(error.message);
+      setNotice(`Operations data unavailable. Client-side reports are still available. ${error instanceof Error ? error.message : "Please try again."}`);
     }
   }
   useEffect(() => void load(), []);
@@ -49,39 +65,55 @@ function OperationsPage({ clients, payments, businessDate }) {
       const response = await secureFetch(endpoint, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) throw new Error(result.error || "Operation failed.");
       setData(result);
       setNotice(payload.action === "create_portal_link" ? `Customer portal link: ${result.portal_url}` : "Operation completed.");
       if (result.portal_url) await navigator.clipboard?.writeText(result.portal_url);
     } catch (error) {
-      setNotice(error.message);
+      setNotice(error instanceof Error ? error.message : "Operation failed.");
     } finally {
       setBusy(false);
     }
   }
   function exportCustomers() {
-    downloadCsv("customers.csv", [
+    downloadCsv(`customers-${exportDate}.csv`, [
       ["Customer number", "Name", "Email", "Phone", "Address", "Monthly amount", "Status"],
       ...clients.map((client) => [client.customerNumber, client.name, client.email, client.phone, client.address, client.amount, client.status])
     ]);
   }
   function exportPayments() {
-    downloadCsv("payments.csv", [
+    downloadCsv(`payments-${exportDate}.csv`, [
       ["Date", "Customer", "Amount", "Method", "Reference", "Notes"],
-      ...payments.map((payment) => [payment.paidAt, payment.clientId, payment.amount, payment.method, payment.referenceNumber, payment.notes])
+      ...payments.map((payment) => [payment.paidAt, customerNames.get(payment.clientId) || payment.clientId, payment.amount, payment.method, payment.referenceNumber, payment.notes])
+    ]);
+  }
+  function exportInvoices() {
+    downloadCsv(`invoices-${exportDate}.csv`, [
+      ["Invoice", "Customer", "Billing period", "Due date", "Total", "Paid", "Balance", "Status"],
+      ...reportInvoices.map((invoice) => [invoice.invoiceNumber, invoice.customerName, invoice.billingPeriod, dateKey(invoice.dueDate), invoice.amount, invoice.paidAmount, invoice.balanceDue, invoice.status])
     ]);
   }
   return jsxs("section", { className: "page-stack operations-page", children: [
     jsxs("div", { className: "page-heading", children: [
       jsxs("div", { children: [jsx("p", { className: "eyebrow", children: "Billing control center" }), jsx("h2", { children: "Operations & Reports" }), jsx("p", { children: "Manage invoice status, reminders, customer access, reports, and audit history." })] }),
       jsxs("div", { className: "operations-actions", children: [
-        jsx("button", { className: "secondary-button", onClick: exportCustomers, children: "Export customers CSV" }),
-        jsx("button", { className: "secondary-button", onClick: exportPayments, children: "Export payments CSV" })
+        jsx("button", { type: "button", className: "secondary-button", onClick: exportCustomers, children: "Export customers" }),
+        jsx("button", { type: "button", className: "secondary-button", onClick: exportPayments, children: "Export payments" }),
+        jsx("button", { type: "button", className: "secondary-button", onClick: exportInvoices, children: "Export invoices" }),
+        jsx("button", { type: "button", onClick: () => window.print(), children: "Print report" })
       ] })
     ] }),
+    jsxs("div", { className: "operations-print-heading", children: [jsx("strong", { children: "Operations & Reports" }), jsx("span", { children: `Report date: ${exportDate}` })] }),
     notice ? jsx("div", { className: notice.includes("completed") || notice.includes("portal") ? "saved-banner" : "database-banner error", children: notice }) : null,
     jsx("div", { className: "accountant-summary", children: Object.entries(aging).map(([label, amount]) => jsxs("article", { className: amount ? "attention" : "", children: [jsx("span", { children: `${label} days` }), jsx("strong", { children: formatAmount(amount) }), jsx("small", { children: "Receivables aging" })] }, label)) }),
+    jsxs("article", { className: "dashboard-panel receivables-report", children: [
+      jsxs("div", { className: "section-heading", children: [jsx("h3", { children: "Customer balance report" }), jsx("span", { children: `${summaries.length} customer${summaries.length === 1 ? "" : "s"}` })] }),
+      summaries.length ? jsx("div", { className: "report-table", children: [
+        jsxs("div", { className: "report-table-heading", children: [jsx("strong", { children: "Customer" }), jsx("strong", { children: "Billed" }), jsx("strong", { children: "Paid" }), jsx("strong", { children: "Balance" }), jsx("strong", { children: "Overdue" })] }),
+        ...summaries.map((item) => jsxs("div", { children: [jsxs("span", { children: [jsx("strong", { children: item.client.name }), jsx("small", { children: item.client.email })] }), jsx("span", { children: formatAmount(item.totalBilled) }), jsx("span", { children: formatAmount(item.totalPaid) }), jsx("strong", { children: formatAmount(item.balanceDue) }), jsx("span", { children: item.overdueInvoiceCount })] }, item.client.id))
+      ] }) : jsx("p", { children: "No customer billing data is available for this report." })
+    ] }),
     jsxs("div", { className: "operations-grid", children: [
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Customer access & reminders" }),
@@ -104,7 +136,7 @@ function OperationsPage({ clients, payments, businessDate }) {
     jsxs("div", { className: "operations-grid", children: [
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Notification queue" }),
-        data.notifications?.length ? jsx("div", { className: "audit-list", children: data.notifications.map((item) => jsxs("div", { children: [jsx("strong", { children: item.type.replaceAll("_", " ") }), jsx("span", { children: item.recipient }), jsx("small", { children: `${item.status} · ${item.scheduledAt}` })] }, item.id)) }) : jsx("p", { children: "No queued reminders." })
+        data.notifications?.length ? jsx("div", { className: "audit-list", children: data.notifications.map((item) => jsxs("div", { children: [jsx("strong", { children: String(item.type || "notification").replaceAll("_", " ") }), jsx("span", { children: item.recipient || "No recipient" }), jsx("small", { children: `${item.status || "unknown"} · ${item.scheduledAt || "Not scheduled"}` })] }, item.id)) }) : jsx("p", { children: "No queued reminders." })
       ] }),
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Audit history" }),
@@ -115,4 +147,3 @@ function OperationsPage({ clients, payments, businessDate }) {
 }
 
 export default OperationsPage;
-

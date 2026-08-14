@@ -1,13 +1,14 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from "react";
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, initialError = "" }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
   const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, []);
+  useEffect(() => setError(initialError), [initialError]);
   async function handleSubmit(event) {
     event.preventDefault();
     const cleanUsername = username.trim();

@@ -1,6 +1,6 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useState } from "react";
-import { formatAmount, formatDueDate, getClientPaymentSummary, parseDateInput } from "../shared";
+import { clampNumber, formatAmount, formatDueDate, getClientPaymentSummary, parseDateInput } from "../shared";
 const sentDateFilterStorageKey = "vss-dashboard-sent-date-filter";
 const selectedSentDateStorageKey = "vss-dashboard-selected-sent-date";
 function loadSentDateFilter() {
@@ -35,19 +35,70 @@ function parseClientLastSent(value) {
   const parsed = new Date(valueWithYear);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
-function DashboardPage({ clients, payments, profile, session, businessDate, invoiceHistory }) {
+function monthlyDate(year, month, billingDay) {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(billingDay, lastDay));
+}
+function getUpcomingClientEvent(client, referenceDate, daysAfterBilling) {
+  const today = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  const startDate = client.startDate ? parseDateInput(client.startDate) : today;
+  const billingDay = clampNumber(client.billingDay, startDate.getDate(), 1, 31);
+  let cycleDate = monthlyDate(today.getFullYear(), today.getMonth(), billingDay);
+  while (cycleDate < startDate) {
+    cycleDate = monthlyDate(cycleDate.getFullYear(), cycleDate.getMonth() + 1, billingDay);
+  }
+  let eventDate = new Date(cycleDate);
+  eventDate.setDate(eventDate.getDate() + daysAfterBilling);
+  while (eventDate < today) {
+    cycleDate = monthlyDate(cycleDate.getFullYear(), cycleDate.getMonth() + 1, billingDay);
+    eventDate = new Date(cycleDate);
+    eventDate.setDate(eventDate.getDate() + daysAfterBilling);
+  }
+  return eventDate;
+}
+function findNextClientEvent(clients, referenceDate, offsetForClient) {
+  return clients.map((client) => ({
+    client,
+    date: getUpcomingClientEvent(client, referenceDate, offsetForClient(client))
+  })).sort((left, right) => left.date.getTime() - right.date.getTime())[0] || null;
+}
+function DashboardPage({ clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) {
   const [sentDateFilter, setSentDateFilter] = useState(loadSentDateFilter);
   const [selectedSentDate, setSelectedSentDate] = useState(loadSelectedSentDate);
   const businessDateValue = parseDateInput(businessDate);
-  const paymentSummaries = clients.map((client) => getClientPaymentSummary(client, payments, businessDateValue));
+  const clientSummaries = clients.map((client) => ({
+    client,
+    summary: getClientPaymentSummary(client, payments, businessDateValue)
+  }));
+  const paymentSummaries = clientSummaries.map(({ summary }) => summary);
   const monthlyTotal = clients.reduce((total, client) => total + Number(client.amount.replace(/[^0-9.-]/g, "")), 0);
   const outstandingBalance = paymentSummaries.reduce((total, summary) => total + summary.balanceDue, 0);
   const recordedPayments = payments.reduce((total, payment) => total + Number(payment.amount.replace(/[^0-9.-]/g, "")), 0);
   const overdueClients = paymentSummaries.filter((summary) => summary.overdueInvoiceCount > 0).length;
+  const overdueCustomerRows = clientSummaries.flatMap(({ client, summary }) => {
+    const overdueInvoices = summary.invoices.filter((invoice) => invoice.balanceDue > 0 && invoice.dueDate < businessDateValue);
+    if (overdueInvoices.length === 0) return [];
+    const oldestDueDate = overdueInvoices.reduce(
+      (oldest, invoice) => invoice.dueDate < oldest ? invoice.dueDate : oldest,
+      overdueInvoices[0].dueDate
+    );
+    const daysOverdue = Math.max(1, Math.floor((businessDateValue.getTime() - oldestDueDate.getTime()) / (24 * 60 * 60 * 1e3)));
+    return [{ client, balanceDue: summary.balanceDue, oldestDueDate, daysOverdue }];
+  }).sort((left, right) => right.daysOverdue - left.daysOverdue || right.balanceDue - left.balanceDue);
   const scheduledCount = clients.filter((client) => client.status === "Scheduled").length;
   const draftCount = clients.filter((client) => client.status === "Draft").length;
   const needsApprovalCount = clients.filter((client) => client.status === "Needs approval").length;
-  const nextBillingDay = clients.length > 0 ? Math.min(...clients.map((client) => Number(client.billingDay) || 1)) : null;
+  const nextInvoiceEvent = findNextClientEvent(clients, businessDateValue, () => 0);
+  const nextDueEvent = findNextClientEvent(
+    clients,
+    businessDateValue,
+    (client) => clampNumber(client.dueAfterDays, 14, 1, 90)
+  );
+  const nextAutoSendEvent = autoSendEnabled ? findNextClientEvent(
+    clients,
+    businessDateValue,
+    (client) => clampNumber(client.dueAfterDays, 14, 1, 90) - 7
+  ) : null;
   const recentClients = clients.slice(-5).reverse();
   const todayKey = manilaDateKey(/* @__PURE__ */ new Date());
   const startOfToday = Date.parse(`${todayKey}T00:00:00Z`);
@@ -128,6 +179,31 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
         /* @__PURE__ */ jsx("small", { children: overdueClients > 0 ? "Collection review required" : "No overdue accounts" })
       ] })
     ] }),
+    /* @__PURE__ */ jsxs("section", { className: "dashboard-panel overdue-customers-panel", children: [
+      /* @__PURE__ */ jsxs("div", { className: "section-heading", children: [
+        /* @__PURE__ */ jsx("h3", { children: "Overdue Customers" }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          overdueCustomerRows.length,
+          " customer",
+          overdueCustomerRows.length === 1 ? "" : "s"
+        ] })
+      ] }),
+      overdueCustomerRows.length > 0 ? /* @__PURE__ */ jsx("div", { className: "overdue-customer-list", children: overdueCustomerRows.map(({ client, balanceDue, oldestDueDate, daysOverdue }) => /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("strong", { children: client.name }),
+          /* @__PURE__ */ jsx("small", { children: client.email })
+        ] }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("small", { children: "Oldest due date" }),
+          /* @__PURE__ */ jsx("strong", { children: formatDueDate(oldestDueDate) })
+        ] }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          /* @__PURE__ */ jsx("small", { children: "Balance due" }),
+          /* @__PURE__ */ jsx("strong", { children: formatAmount(balanceDue) })
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "overdue-days-badge", children: `${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue` })
+      ] }, client.id)) }) : /* @__PURE__ */ jsx("p", { className: "dashboard-filter-empty", children: "No customers are overdue." })
+    ] }),
     /* @__PURE__ */ jsxs("div", { className: "dashboard-layout", children: [
       /* @__PURE__ */ jsxs("article", { className: "dashboard-panel dashboard-main-panel", children: [
         /* @__PURE__ */ jsxs("div", { className: "panel-heading", children: [
@@ -136,8 +212,19 @@ function DashboardPage({ clients, payments, profile, session, businessDate, invo
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "dashboard-status-grid", children: [
           /* @__PURE__ */ jsxs("div", { children: [
-            /* @__PURE__ */ jsx("span", { children: "Next billing day" }),
-            /* @__PURE__ */ jsx("strong", { children: nextBillingDay ? `Day ${nextBillingDay}` : "No clients" })
+            /* @__PURE__ */ jsx("span", { children: "Next invoice cycle" }),
+            /* @__PURE__ */ jsx("strong", { children: nextInvoiceEvent ? formatDueDate(nextInvoiceEvent.date) : "No clients" }),
+            nextInvoiceEvent ? /* @__PURE__ */ jsx("small", { children: nextInvoiceEvent.client.name }) : null
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "Next automatic send" }),
+            /* @__PURE__ */ jsx("strong", { children: autoSendEnabled ? nextAutoSendEvent ? formatDueDate(nextAutoSendEvent.date) : "No clients" : "Delivery is off" }),
+            nextAutoSendEvent ? /* @__PURE__ */ jsx("small", { children: nextAutoSendEvent.client.name }) : null
+          ] }),
+          /* @__PURE__ */ jsxs("div", { children: [
+            /* @__PURE__ */ jsx("span", { children: "Next payment due" }),
+            /* @__PURE__ */ jsx("strong", { children: nextDueEvent ? formatDueDate(nextDueEvent.date) : "No clients" }),
+            nextDueEvent ? /* @__PURE__ */ jsx("small", { children: nextDueEvent.client.name }) : null
           ] }),
           /* @__PURE__ */ jsxs("div", { children: [
             /* @__PURE__ */ jsx("span", { children: "Sender" }),
