@@ -1,6 +1,6 @@
 import { database, ensureCompany, ensureInvoiceHistorySchema } from "./db.js";
 import { deliverInvoice } from "../api/send-invoice.js";
-import { ensureAutomationSettings } from "../api/automation-settings.js";
+import { ensureAutomationSettings } from "./automation-settings.js";
 
 const LEAD_DAYS = 7;
 const DAY_MS = 86_400_000;

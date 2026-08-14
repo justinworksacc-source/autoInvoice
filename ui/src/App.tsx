@@ -40,7 +40,7 @@ const autoSendEnabledStorageKey = "ai-accountant-ceo-auto-send-enabled";
 const monthlyInvoicesEndpoint = "/api/monthly-invoices";
 const businessDateEndpoint = "/api/business-date";
 const businessProfileEndpoint = "/api/business-profile";
-const automationSettingsEndpoint = "/api/automation-settings";
+const automationSettingsEndpoint = "/api/business-profile?resource=automation";
 const authEndpoint = "/api/auth";
 const legacySampleClientId = "customer@example.com";
 function formatDateInput(date = /* @__PURE__ */ new Date()) {
