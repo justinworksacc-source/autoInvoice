@@ -17,7 +17,7 @@ async function ensureSuperAdmin() {
 
 async function isProtectedSuperAdmin(userId) {
   const [users] = await database().execute(
-    "SELECT id FROM auth_accounts WHERE id=? AND (role='super_admin' OR LOWER(username)=?) LIMIT 1",
+    "SELECT id FROM auth_accounts WHERE id=? AND company_id=1 AND (role='super_admin' OR LOWER(username)=?) LIMIT 1",
     [userId, superAdminUsername]
   );
   return users.length > 0;
@@ -28,7 +28,7 @@ async function listUsers() {
     `SELECT id,username,COALESCE(full_name,'') AS "fullName",role,is_active AS "isActive",
       TO_CHAR(last_login_at,'YYYY-MM-DD HH24:MI') AS "lastLoginAt",
       TO_CHAR(created_at,'YYYY-MM-DD') AS "createdAt"
-     FROM auth_accounts ORDER BY username`
+     FROM auth_accounts WHERE company_id=1 ORDER BY username`
   );
   return users;
 }
@@ -60,19 +60,21 @@ export default async function handler(req, res) {
       const userId = Number(input.user_id);
       if (await isProtectedSuperAdmin(userId)) throw Object.assign(new Error("The Super Administrator account cannot be disabled."), { status: 422 });
       if (userId === session.userId && !input.is_active) throw Object.assign(new Error("You cannot disable your own account."), { status: 422 });
-      await database().execute("UPDATE auth_accounts SET is_active=? WHERE id=?", [input.is_active ? 1 : 0, userId]);
+      const [result] = await database().execute("UPDATE auth_accounts SET is_active=? WHERE id=? AND company_id=1", [input.is_active ? 1 : 0, userId]);
+      if (!result.affectedRows) throw Object.assign(new Error("User account was not found."), { status: 404 });
     } else if (input.action === "set_role") {
       const role = String(input.role || "");
       if (!roles.has(role)) throw Object.assign(new Error("Invalid role."), { status: 422 });
       const userId = Number(input.user_id);
       if (await isProtectedSuperAdmin(userId)) throw Object.assign(new Error("The Super Administrator role cannot be changed."), { status: 422 });
-      await database().execute("UPDATE auth_accounts SET role=? WHERE id=?", [role, userId]);
+      const [result] = await database().execute("UPDATE auth_accounts SET role=? WHERE id=? AND company_id=1", [role, userId]);
+      if (!result.affectedRows) throw Object.assign(new Error("User account was not found."), { status: 404 });
     } else if (input.action === "delete") {
       const userId = Number(input.user_id);
       if (!Number.isInteger(userId) || userId < 1) throw Object.assign(new Error("Invalid user account."), { status: 422 });
       if (await isProtectedSuperAdmin(userId)) throw Object.assign(new Error("The Super Administrator account cannot be deleted."), { status: 422 });
       if (userId === session.userId) throw Object.assign(new Error("You cannot delete your own logged-in account."), { status: 422 });
-      const [result] = await database().execute("DELETE FROM auth_accounts WHERE id=?", [userId]);
+      const [result] = await database().execute("DELETE FROM auth_accounts WHERE id=? AND company_id=1", [userId]);
       if (!result.affectedRows) throw Object.assign(new Error("User account was not found."), { status: 404 });
     } else if (input.action === "bulk_disable" || input.action === "bulk_delete") {
       const userIds = [...new Set((Array.isArray(input.user_ids) ? input.user_ids : []).map(Number))]
@@ -82,14 +84,14 @@ export default async function handler(req, res) {
       if (userIds.includes(session.userId)) throw Object.assign(new Error("Your own logged-in account cannot be selected."), { status: 422 });
       const placeholders = userIds.map(() => "?").join(",");
       const [[protectedAccount]] = await database().execute(
-        `SELECT COUNT(*) count FROM auth_accounts WHERE id IN (${placeholders}) AND (role='super_admin' OR LOWER(username)=?)`,
+        `SELECT COUNT(*) count FROM auth_accounts WHERE company_id=1 AND id IN (${placeholders}) AND (role='super_admin' OR LOWER(username)=?)`,
         [...userIds, superAdminUsername]
       );
       if (Number(protectedAccount.count)) throw Object.assign(new Error("The Super Administrator account cannot be changed."), { status: 422 });
       if (input.action === "bulk_disable") {
-        await database().execute(`UPDATE auth_accounts SET is_active=0 WHERE id IN (${placeholders})`, userIds);
+        await database().execute(`UPDATE auth_accounts SET is_active=0 WHERE company_id=1 AND id IN (${placeholders})`, userIds);
       } else {
-        await database().execute(`DELETE FROM auth_accounts WHERE id IN (${placeholders})`, userIds);
+        await database().execute(`DELETE FROM auth_accounts WHERE company_id=1 AND id IN (${placeholders})`, userIds);
       }
     } else throw Object.assign(new Error("Unknown user operation."), { status: 422 });
     return json(res, 200, { success: true, users: await listUsers() });

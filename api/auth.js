@@ -16,7 +16,7 @@ export default async function handler(req, res) {
         [username, ip]
       );
       if (Number(attempts.count) >= 5) throw Object.assign(new Error("Too many login attempts. Try again in 15 minutes."), { status: 429 });
-      const [rows] = await db.execute("SELECT id, username, password_hash, role FROM auth_accounts WHERE username = ? AND is_active = TRUE LIMIT 1", [username]);
+      const [rows] = await db.execute("SELECT id, username, password_hash, role FROM auth_accounts WHERE company_id=1 AND username = ? AND is_active = TRUE LIMIT 1", [username]);
       const account = rows[0];
       if (!account || !(await bcrypt.compare(password, account.password_hash))) {
         await db.execute("INSERT INTO auth_login_attempts (username, ip_address) VALUES (?, ?)", [username, ip]);
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       if (!session) return json(res, 401, { success: false, error: "Authentication required." });
       await ensureAuthSchema();
       const [rows] = await database().execute(
-        "SELECT id,username,role FROM auth_accounts WHERE id=? AND is_active=TRUE LIMIT 1",
+        "SELECT id,username,role FROM auth_accounts WHERE id=? AND company_id=1 AND is_active=TRUE LIMIT 1",
         [session.userId]
       );
       const account = rows[0];
@@ -50,7 +50,8 @@ export default async function handler(req, res) {
       const password = String(input.password || "");
       if (username.length < 3 || password.length < 8) throw Object.assign(new Error("Username needs 3 characters and password needs 8 characters."), { status: 422 });
       const hash = await bcrypt.hash(password, 12);
-      await database().execute("UPDATE auth_accounts SET username = ?, password_hash = ? WHERE id = ?", [username, hash, session.userId]);
+      const [result] = await database().execute("UPDATE auth_accounts SET username = ?, password_hash = ? WHERE id = ? AND company_id=1", [username, hash, session.userId]);
+      if (!result.affectedRows) throw Object.assign(new Error("Your account is no longer active."), { status: 401 });
       const next = createSession(res, { id: session.userId, username, role: session.role });
       return json(res, 200, { success: true, user: { username, role: next.role }, csrf_token: next.csrf });
     }

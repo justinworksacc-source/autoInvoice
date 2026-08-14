@@ -79,7 +79,11 @@ export function requireSession(req, { csrf = true } = {}) {
 }
 
 export function json(res, status, payload) {
-  res.status(status).setHeader("Cache-Control", "no-store").json(payload);
+  res.status(status)
+    .setHeader("Cache-Control", "no-store")
+    .setHeader("X-Content-Type-Options", "nosniff")
+    .setHeader("Referrer-Policy", "no-referrer")
+    .json(payload);
 }
 
 export function fail(res, error) {
@@ -105,6 +109,12 @@ export function fail(res, error) {
 
 export async function body(req) {
   if (req.body && typeof req.body === "object") return req.body;
-  if (typeof req.body === "string") return JSON.parse(req.body || "{}");
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body || "{}");
+    } catch {
+      throw Object.assign(new Error("The request body must contain valid JSON."), { status: 400 });
+    }
+  }
   return {};
 }
