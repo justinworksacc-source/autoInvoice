@@ -72,7 +72,7 @@ function UsersPage({ session }) {
         jsxs("label", { children: ["Full name", jsx("input", { value: form.full_name, onChange: (event) => setForm({ ...form, full_name: event.target.value }) })] }),
         jsxs("label", { children: ["Username", jsx("input", { value: form.username, required: true, onChange: (event) => setForm({ ...form, username: event.target.value }) })] }),
         jsxs("label", { children: ["Temporary password", jsx("input", { type: "password", minLength: 10, required: true, value: form.password, onChange: (event) => setForm({ ...form, password: event.target.value }) })] }),
-        jsxs("label", { children: ["Role", jsxs("select", { value: form.role, onChange: (event) => setForm({ ...form, role: event.target.value }), children: [jsx("option", { value: "staff", children: "Staff" }), jsx("option", { value: "accountant", children: "Accountant" }), jsx("option", { value: "admin", children: "Administrator" })] })] }),
+        jsxs("label", { children: ["Role", jsxs("select", { value: form.role, onChange: (event) => setForm({ ...form, role: event.target.value }), children: [jsx("option", { value: "staff", children: "Staff" }), jsx("option", { value: "technician", children: "Field Technician" }), jsx("option", { value: "accountant", children: "Accountant" }), jsx("option", { value: "admin", children: "Administrator" })] })] }),
         jsx("button", { type: "submit", children: "Create user" })
       ] }),
       jsxs("article", { className: "dashboard-panel user-list-panel", children: [
@@ -115,6 +115,7 @@ function UsersPage({ session }) {
               jsxs("select", { value: user.role, disabled: isBusy || isSuperAdmin, title: isSuperAdmin ? "The Super Administrator role is protected." : "", onChange: (event) => void updateUser(user.id, { action: "set_role", role: event.target.value }, "User role updated."), children: [
                 isSuperAdmin ? jsx("option", { value: "super_admin", children: "Super Administrator" }) : null,
                 jsx("option", { value: "staff", children: "Staff" }),
+                jsx("option", { value: "technician", children: "Field Technician" }),
                 jsx("option", { value: "accountant", children: "Accountant" }),
                 jsx("option", { value: "admin", children: "Administrator" })
               ] })

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { database } from "../server/db.js";
-import { body, fail, json, readSession, requireSession } from "../server/security.js";
+import { body, fail, json, readSession, requireRole, requireSession } from "../server/security.js";
 
 function cleanAmount(value) {
   return Math.round((Number(String(value || "0").replace(/[^0-9.-]/g, "")) || 0) * 100) / 100;
@@ -77,6 +77,7 @@ export default async function handler(req, res) {
     const authenticated = readSession(req);
     const portalToken = String(input.portal_token || "");
     if (!authenticated && !portalToken) requireSession(req);
+    if (authenticated) requireRole(authenticated, ["admin", "accountant", "staff"]);
     const portalHash = portalToken ? crypto.createHash("sha256").update(portalToken).digest("hex") : "";
     const email = String(input.client_id || "").trim().toLowerCase();
     let amount = cleanAmount(input.amount);

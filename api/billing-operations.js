@@ -155,6 +155,7 @@ async function portalLink(session, input, req) {
 export default async function handler(req, res) {
   try {
     const session = requireSession(req);
+    requireRole(session, ["admin", "accountant"]);
     if (req.method === "GET") return json(res, 200, { success: true, ...(await overview()) });
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const input = await body(req);

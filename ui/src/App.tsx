@@ -23,6 +23,7 @@ const SettingsPage = lazy(() => import("./settings/SettingsPage"));
 const OperationsPage = lazy(() => import("./operations/OperationsPage"));
 const CustomerPortalPage = lazy(() => import("./portal/CustomerPortalPage"));
 const UsersPage = lazy(() => import("./users/UsersPage"));
+const FieldServicePage = lazy(() => import("./field-service/FieldServicePage"));
 const defaultBusinessProfile = {
   companyName: "Visual Security Systems",
   gmailAlias: ""
@@ -386,6 +387,13 @@ function App() {
     if (!authChecked || !session) {
       return;
     }
+    if (session.role === "technician") {
+      setClients([]);
+      setPayments([]);
+      setInvoiceHistory([]);
+      setBillingLoaded(true);
+      return;
+    }
     let cancelled = false;
     async function loadDatabaseState() {
       try {
@@ -541,6 +549,13 @@ function App() {
   if (!profileLoaded || !billingLoaded) {
     return null;
   }
+  const isTechnician = session.role === "technician";
+  const canAccessFinancial = ["super_admin", "admin", "accountant"].includes(session.role);
+  const canAccessCustomerOperations = ["super_admin", "admin", "accountant", "staff"].includes(session.role);
+  const canAccessFieldService = ["super_admin", "admin", "technician"].includes(session.role);
+  const canManageUsers = ["super_admin", "admin"].includes(session.role);
+  const canManageSettings = ["super_admin", "admin"].includes(session.role);
+  const restrictedRedirect = isTechnician ? "/field-service" : "/";
   return /* @__PURE__ */ jsx(Suspense, { fallback: null, children: /* @__PURE__ */ jsx(BrowserRouter, { children: /* @__PURE__ */ jsxs("div", { className: "app-shell", children: [
     /* @__PURE__ */ jsxs("aside", { className: `sidebar ${mobileNavOpen ? "mobile-open" : ""}`, children: [
       /* @__PURE__ */ jsxs("div", { className: "brand-block", children: [
@@ -553,14 +568,15 @@ function App() {
         /* @__PURE__ */ jsx("span", {})
       ] }),
       /* @__PURE__ */ jsxs("nav", { id: "primary-navigation", "aria-label": "Primary navigation", children: [
-        /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }),
-        /* @__PURE__ */ jsx(NavLink, { to: "/accountant", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }),
-        /* @__PURE__ */ jsx(NavLink, { to: "/operations", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }),
-        ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(NavLink, { to: "/users", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
+        !isTechnician ? /* @__PURE__ */ jsx(NavLink, { to: "/", end: true, onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Dashboard" }) : null,
+        canAccessFinancial ? /* @__PURE__ */ jsx(NavLink, { to: "/accountant", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Accountant" }) : null,
+        canAccessFinancial ? /* @__PURE__ */ jsx(NavLink, { to: "/operations", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Operations & Reports" }) : null,
+        canAccessFieldService ? /* @__PURE__ */ jsx(NavLink, { to: "/field-service", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Field Service" }) : null,
+        canManageUsers ? /* @__PURE__ */ jsx(NavLink, { to: "/users", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "nav-link active" : "nav-link", children: "Users & Roles" }) : null
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "sidebar-footer", children: [
         /* @__PURE__ */ jsxs("div", { className: "account-links", children: [
-          /* @__PURE__ */ jsxs("div", { className: "reminder-menu", children: [
+          !isTechnician ? /* @__PURE__ */ jsxs("div", { className: "reminder-menu", children: [
             /* @__PURE__ */ jsxs("button", { type: "button", className: `reminder-button ${paymentReminders.length ? "has-reminders" : ""} ${overdueReminderCount ? "has-overdue" : ""}`, onClick: () => setRemindersOpen((open) => !open), "aria-expanded": remindersOpen, "aria-label": paymentReminders.length ? `${paymentReminders.length} payment reminders, ${overdueReminderCount} overdue` : "No payment reminders", children: [
               /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" }) }),
               paymentReminders.length ? /* @__PURE__ */ jsx("span", { className: `reminder-count ${overdueReminderCount ? "overdue" : ""}`, children: paymentReminders.length > 99 ? "99+" : paymentReminders.length }) : null
@@ -597,8 +613,8 @@ function App() {
                 /* @__PURE__ */ jsx("p", { children: "There are no overdue customers or payments due within seven days." })
               ] })
             ] }) : null
-          ] }),
-          /* @__PURE__ */ jsx(
+          ] }) : null,
+          canManageSettings ? /* @__PURE__ */ jsx(
             NavLink,
             {
               to: "/settings",
@@ -611,7 +627,7 @@ function App() {
                 /* @__PURE__ */ jsx("path", { d: "M19.4 13.5a7.7 7.7 0 0 0 .05-1.5 7.7 7.7 0 0 0-.05-1.5l2-1.55-2-3.46-2.47 1a8.6 8.6 0 0 0-2.58-1.5L14 2.35h-4l-.35 2.64a8.6 8.6 0 0 0-2.58 1.5l-2.47-1-2 3.46 2 1.55a7.7 7.7 0 0 0-.05 1.5c0 .51.02 1.01.05 1.5l-2 1.55 2 3.46 2.47-1a8.6 8.6 0 0 0 2.58 1.5L10 21.65h4l.35-2.64a8.6 8.6 0 0 0 2.58-1.5l2.47 1 2-3.46-2-1.55Z" })
               ] })
             }
-          ),
+          ) : null,
           /* @__PURE__ */ jsx(NavLink, { to: "/profile", onClick: () => setMobileNavOpen(false), className: ({ isActive }) => isActive ? "logout-button profile-account-link active" : "logout-button profile-account-link", children: "Profile" })
         ] })
       ] })
@@ -619,16 +635,17 @@ function App() {
     /* @__PURE__ */ jsxs("main", { className: "content", children: [
       databaseNotice ? /* @__PURE__ */ jsx("div", { className: `database-banner ${databaseNotice.includes("failed") || databaseNotice.includes("not connected") ? "error" : ""}`, children: databaseNotice }) : null,
       /* @__PURE__ */ jsxs(Routes, { children: [
-        /* @__PURE__ */ jsx(Route, { path: "/", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/accountant", element: /* @__PURE__ */ jsx(AccountantPage, { clients, payments, businessDate }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/operations", element: /* @__PURE__ */ jsx(OperationsPage, { clients, payments, businessDate }) }),
-        /* @__PURE__ */ jsx(Route, { path: "/users", element: ["super_admin", "admin"].includes(session.role) ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: "/", replace: true }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/", element: isTechnician ? /* @__PURE__ */ jsx(Navigate, { to: "/field-service", replace: true }) : /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/dashboard", element: isTechnician ? /* @__PURE__ */ jsx(Navigate, { to: "/field-service", replace: true }) : /* @__PURE__ */ jsx(DashboardPage, { clients, payments, profile, session, businessDate, invoiceHistory, autoSendEnabled }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/accountant", element: canAccessFinancial ? /* @__PURE__ */ jsx(AccountantPage, { clients, payments, businessDate }) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/operations", element: canAccessFinancial ? /* @__PURE__ */ jsx(OperationsPage, { clients, payments, businessDate }) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/field-service", element: canAccessFieldService ? /* @__PURE__ */ jsx(FieldServicePage, { session, clients }) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true }) }),
+        /* @__PURE__ */ jsx(Route, { path: "/users", element: canManageUsers ? /* @__PURE__ */ jsx(UsersPage, { session }) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true }) }),
         /* @__PURE__ */ jsx(
           Route,
           {
             path: "/settings",
-            element: /* @__PURE__ */ jsx(
+            element: canManageSettings ? /* @__PURE__ */ jsx(
               SettingsPage,
               {
                 businessDate,
@@ -639,7 +656,7 @@ function App() {
                 autoSendEnabled,
                 onAutoSendChange: saveAutoSendEnabled
               }
-            )
+            ) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true })
           }
         ),
         /* @__PURE__ */ jsx(Route, { path: "/profile", element: /* @__PURE__ */ jsx(ProfilePage, { profile, onProfileSave: saveProfileToDatabase, session, onLogout: handleLogout, onCredentialsChange: handleCredentialsChange }) }),
@@ -647,7 +664,7 @@ function App() {
           Route,
           {
             path: "/invoices",
-            element: /* @__PURE__ */ jsx(
+            element: canAccessCustomerOperations ? /* @__PURE__ */ jsx(
               PrepareInvoicesPage,
               {
                 clients,
@@ -658,14 +675,14 @@ function App() {
                 autoSendEnabled,
                 onAutoSendChange: saveAutoSendEnabled
               }
-            )
+            ) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true })
           }
         ),
         /* @__PURE__ */ jsx(
           Route,
           {
             path: "/customers",
-            element: /* @__PURE__ */ jsx(
+            element: canAccessCustomerOperations ? /* @__PURE__ */ jsx(
               CustomersPage,
               {
                 clients,
@@ -680,7 +697,7 @@ function App() {
                 deleteClientFromDatabase,
                 autoSendEnabled
               }
-            )
+            ) : /* @__PURE__ */ jsx(Navigate, { to: restrictedRedirect, replace: true })
           }
         )
       ] })

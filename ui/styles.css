@@ -6393,6 +6393,115 @@ pre {
   color: #60708f;
 }
 
+.field-service-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+.field-service-layout.with-dispatch {
+  grid-template-columns: minmax(280px, 0.65fr) minmax(0, 1.35fr);
+}
+
+.field-service-form {
+  align-self: start;
+}
+
+.field-service-form h3 {
+  margin: 0;
+}
+
+.field-service-board {
+  min-width: 0;
+}
+
+.field-service-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.field-service-list > article {
+  background: rgba(16, 31, 62, 0.55);
+  border: 1px solid rgba(142, 176, 255, 0.2);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.field-job-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.field-job-heading > div,
+.field-service-list dl div,
+.field-service-list label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.field-job-heading small,
+.field-service-list dt {
+  color: #a9b8d5;
+}
+
+.field-service-list p,
+.field-service-list dl {
+  margin: 0;
+}
+
+.field-service-list dl {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.field-service-list dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field-service-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.field-service-list select,
+.field-service-list textarea {
+  width: 100%;
+}
+
+.send-status.in_progress {
+  background: rgba(0, 209, 255, 0.16);
+  border-color: rgba(0, 209, 255, 0.45);
+  color: #7cecff;
+}
+
+.send-status.completed {
+  background: rgba(70, 211, 130, 0.16);
+  border-color: rgba(70, 211, 130, 0.4);
+  color: #83efae;
+}
+
+.send-status.cancelled {
+  background: rgba(255, 105, 120, 0.14);
+  border-color: rgba(255, 105, 120, 0.38);
+  color: #ff9aa5;
+}
+
+[data-theme='light'] .field-service-list > article {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: #ccdcf8;
+}
+
+[data-theme='light'] .field-job-heading small,
+[data-theme='light'] .field-service-list dt {
+  color: #60708f;
+}
+
 @media print {
   .portal-shell {
     background: #ffffff;
@@ -6440,6 +6549,10 @@ pre {
 }
 
 @media (max-width: 1120px) {
+  .field-service-layout.with-dispatch {
+    grid-template-columns: 1fr;
+  }
+
   .sidebar {
     gap: 0.75rem;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -6523,6 +6636,15 @@ pre {
 }
 
 @media (max-width: 600px) {
+  .field-job-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .field-service-list dl {
+    grid-template-columns: 1fr;
+  }
+
   .content {
     padding: 0.8rem;
   }

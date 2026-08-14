@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { database, ensureCompany, ensureInvoiceHistorySchema } from "../server/db.js";
-import { body, fail, json, requireSession } from "../server/security.js";
+import { body, fail, json, requireRole, requireSession } from "../server/security.js";
 
 const statusName = (value) => {
   const status = String(value || "").toLowerCase();
@@ -156,7 +156,8 @@ async function recordPayment(payment) {
 
 export default async function handler(req, res) {
   try {
-    requireSession(req);
+    const session = requireSession(req);
+    requireRole(session, ["admin", "accountant", "staff"]);
     if (req.method === "GET") return json(res, 200, { success: true, ...(await readStore()) });
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const input = await body(req);

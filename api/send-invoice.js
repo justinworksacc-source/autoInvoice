@@ -1,6 +1,6 @@
 import PDFDocument from "pdfkit";
 import { database, ensureInvoiceHistorySchema } from "../server/db.js";
-import { body, fail, json, requireSession } from "../server/security.js";
+import { body, fail, json, requireRole, requireSession } from "../server/security.js";
 
 function text(value, fallback = "") {
   return String(value || fallback).trim();
@@ -101,7 +101,8 @@ export async function deliverInvoice(invoice) {
 
 export default async function handler(req, res) {
   try {
-    requireSession(req);
+    const session = requireSession(req);
+    requireRole(session, ["admin", "accountant", "staff"]);
     if (req.method !== "POST") return json(res, 405, { success: false, error: "Method not allowed." });
     const invoice = await body(req);
     if (!invoice.to || !invoice.invoice_number) throw Object.assign(new Error("Recipient and invoice number are required."), { status: 422 });

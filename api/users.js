@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { database, ensureAuthSchema } from "../server/db.js";
 import { body, fail, json, requireRole, requireSession } from "../server/security.js";
 
-const roles = new Set(["admin", "accountant", "staff"]);
+const roles = new Set(["admin", "accountant", "staff", "technician"]);
 const superAdminUsername = "visualsecsys";
 
 async function ensureSuperAdmin() {
