@@ -6124,6 +6124,10 @@ pre {
   justify-content: flex-end;
 }
 
+.operations-print-heading {
+  display: none;
+}
+
 .operations-grid {
   align-items: start;
 }
@@ -6503,6 +6507,83 @@ pre {
 }
 
 @media print {
+  @page {
+    margin: 12mm;
+    size: landscape;
+  }
+
+  body,
+  #root,
+  .app-shell,
+  .content {
+    background: #fff !important;
+    color: #111 !important;
+    display: block !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .sidebar,
+  .operations-page .page-heading,
+  .operations-page .operations-actions,
+  .operations-page button,
+  .database-banner,
+  .saved-banner {
+    display: none !important;
+  }
+
+  .operations-page,
+  .operations-grid,
+  .accountant-summary {
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  .operations-print-heading {
+    align-items: baseline;
+    border-bottom: 2px solid #111;
+    display: flex !important;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    padding-bottom: 8px;
+  }
+
+  .operations-print-heading strong {
+    font-size: 20px;
+  }
+
+  .operations-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .operations-page .dashboard-panel,
+  .operations-page .accountant-summary article,
+  .operations-list > div,
+  .audit-list > div {
+    background: #fff !important;
+    border-color: #bbb !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    color: #111 !important;
+  }
+
+  .operations-page small,
+  .operations-page p,
+  .operations-page span {
+    color: #333 !important;
+  }
+
+  .operations-page select {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: #111;
+    padding: 0;
+  }
+
   .portal-shell {
     background: #ffffff;
     color: #000000;
