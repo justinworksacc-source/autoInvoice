@@ -6,6 +6,10 @@ import { formatAmount, getClientPaymentSummary, parseAmount, parseDateInput } fr
 const endpoint = "/api/billing-operations";
 const invoiceStatuses = ["draft", "sent", "viewed", "partially_paid", "paid", "overdue", "cancelled"];
 
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function downloadCsv(filename, rows) {
   const csv = `\uFEFF${rows.map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n")}`;
   const link = document.createElement("a");
@@ -37,15 +41,20 @@ function OperationsPage({ clients, payments, businessDate }) {
   }, { current: 0, "1-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
   const exportDate = businessDate || new Date().toISOString().slice(0, 10);
   const customerNames = useMemo(() => new Map(clients.map((client) => [client.id, client.name])), [clients]);
+  const reportInvoices = useMemo(() => summaries.flatMap(({ client, invoices }) => invoices.map((invoice) => ({
+    ...invoice,
+    customerName: client.name,
+    customerEmail: client.email
+  }))), [summaries]);
 
   async function load() {
     try {
       const response = await secureFetch(endpoint);
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) throw new Error(result.error || "Unable to load operations.");
       setData(result);
     } catch (error) {
-      setNotice(error.message);
+      setNotice(`Operations data unavailable. Client-side reports are still available. ${error instanceof Error ? error.message : "Please try again."}`);
     }
   }
   useEffect(() => void load(), []);
@@ -56,13 +65,13 @@ function OperationsPage({ clients, payments, businessDate }) {
       const response = await secureFetch(endpoint, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success) throw new Error(result.error || "Operation failed.");
       setData(result);
       setNotice(payload.action === "create_portal_link" ? `Customer portal link: ${result.portal_url}` : "Operation completed.");
       if (result.portal_url) await navigator.clipboard?.writeText(result.portal_url);
     } catch (error) {
-      setNotice(error.message);
+      setNotice(error instanceof Error ? error.message : "Operation failed.");
     } finally {
       setBusy(false);
     }
@@ -82,7 +91,7 @@ function OperationsPage({ clients, payments, businessDate }) {
   function exportInvoices() {
     downloadCsv(`invoices-${exportDate}.csv`, [
       ["Invoice", "Customer", "Billing period", "Due date", "Total", "Paid", "Balance", "Status"],
-      ...(data.invoices || []).map((invoice) => [invoice.invoiceNumber, invoice.customerName, invoice.billingPeriod, invoice.dueDate, invoice.totalAmount, invoice.paidAmount, invoice.balanceDue, invoice.status])
+      ...reportInvoices.map((invoice) => [invoice.invoiceNumber, invoice.customerName, invoice.billingPeriod, dateKey(invoice.dueDate), invoice.amount, invoice.paidAmount, invoice.balanceDue, invoice.status])
     ]);
   }
   return jsxs("section", { className: "page-stack operations-page", children: [
@@ -98,6 +107,13 @@ function OperationsPage({ clients, payments, businessDate }) {
     jsxs("div", { className: "operations-print-heading", children: [jsx("strong", { children: "Operations & Reports" }), jsx("span", { children: `Report date: ${exportDate}` })] }),
     notice ? jsx("div", { className: notice.includes("completed") || notice.includes("portal") ? "saved-banner" : "database-banner error", children: notice }) : null,
     jsx("div", { className: "accountant-summary", children: Object.entries(aging).map(([label, amount]) => jsxs("article", { className: amount ? "attention" : "", children: [jsx("span", { children: `${label} days` }), jsx("strong", { children: formatAmount(amount) }), jsx("small", { children: "Receivables aging" })] }, label)) }),
+    jsxs("article", { className: "dashboard-panel receivables-report", children: [
+      jsxs("div", { className: "section-heading", children: [jsx("h3", { children: "Customer balance report" }), jsx("span", { children: `${summaries.length} customer${summaries.length === 1 ? "" : "s"}` })] }),
+      summaries.length ? jsx("div", { className: "report-table", children: [
+        jsxs("div", { className: "report-table-heading", children: [jsx("strong", { children: "Customer" }), jsx("strong", { children: "Billed" }), jsx("strong", { children: "Paid" }), jsx("strong", { children: "Balance" }), jsx("strong", { children: "Overdue" })] }),
+        ...summaries.map((item) => jsxs("div", { children: [jsxs("span", { children: [jsx("strong", { children: item.client.name }), jsx("small", { children: item.client.email })] }), jsx("span", { children: formatAmount(item.totalBilled) }), jsx("span", { children: formatAmount(item.totalPaid) }), jsx("strong", { children: formatAmount(item.balanceDue) }), jsx("span", { children: item.overdueInvoiceCount })] }, item.client.id))
+      ] }) : jsx("p", { children: "No customer billing data is available for this report." })
+    ] }),
     jsxs("div", { className: "operations-grid", children: [
       jsxs("article", { className: "dashboard-panel", children: [
         jsx("h3", { children: "Customer access & reminders" }),

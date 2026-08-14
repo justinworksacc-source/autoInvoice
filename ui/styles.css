@@ -6128,6 +6128,33 @@ pre {
   display: none;
 }
 
+.report-table {
+  display: grid;
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.report-table > div {
+  align-items: center;
+  border-bottom: 1px solid rgba(142, 176, 255, 0.18);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(190px, 1.5fr) repeat(4, minmax(85px, 0.65fr));
+  min-width: 650px;
+  padding: 0.7rem 0;
+}
+
+.report-table > div > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.report-table-heading {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
 .operations-grid {
   align-items: start;
 }
@@ -6459,6 +6486,15 @@ pre {
     box-shadow: none !important;
     break-inside: avoid;
     color: #111 !important;
+  }
+
+  .report-table {
+    overflow: visible;
+  }
+
+  .report-table > div {
+    border-color: #bbb !important;
+    min-width: 0;
   }
 
   .operations-page small,

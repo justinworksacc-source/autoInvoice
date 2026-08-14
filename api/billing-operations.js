@@ -62,8 +62,10 @@ async function updateInvoice(session, input) {
   }
   const cancelled = status === "cancelled";
   const [result] = await database().execute(
-    `UPDATE monthly_invoice_cycles SET status=?, viewed_at=IF(?='viewed',COALESCE(viewed_at,NOW()),viewed_at),
-       cancelled_at=IF(?,NOW(),NULL),cancelled_reason=IF(?,?,NULL),updated_at=NOW()
+    `UPDATE monthly_invoice_cycles SET status=?,
+       viewed_at=CASE WHEN ?='viewed' THEN COALESCE(viewed_at,NOW()) ELSE viewed_at END,
+       cancelled_at=CASE WHEN ? THEN NOW() ELSE NULL END,
+       cancelled_reason=CASE WHEN ? THEN ? ELSE NULL END,updated_at=NOW()
      WHERE id=? AND company_id=1`,
     [status, status, cancelled, cancelled, String(input.reason || "").slice(0, 500), id]
   );
