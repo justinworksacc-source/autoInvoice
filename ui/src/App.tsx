@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes } from "react-router-dom";
 import DashboardPage from "./dashboard/DashboardPage";
 import LoginPage from "./auth/LoginPage";
-import { saveCsrfToken, secureFetch } from "./apiSecurity";
+import { saveCsrfToken, secureFetch, sessionExpiredEvent } from "./apiSecurity";
 import {
   clampNumber,
   formatAmount,
@@ -250,6 +250,7 @@ function App() {
   const [profile, setProfile] = useState(() => loadBusinessProfile());
   const [session, setSession] = useState(() => loadAuthSession());
   const [authChecked, setAuthChecked] = useState(false);
+  const [authNotice, setAuthNotice] = useState("");
   const [businessDate, setBusinessDate] = useState(() => loadBusinessDate());
   const [businessTime, setBusinessTime] = useState(() => loadBusinessTime());
   const [theme, setTheme] = useState(() => loadTheme());
@@ -295,19 +296,76 @@ function App() {
   }, [businessDate, clients, payments]);
   const overdueReminderCount = paymentReminders.filter((reminder) => reminder.isOverdue).length;
   useEffect(() => {
-    secureFetch(authEndpoint).then(async (response) => {
-      const result = await response.json();
+    let cancelled = false;
+    async function verifySession() {
+      const response = await secureFetch(authEndpoint);
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.success || !result.user?.username) {
         window.localStorage.removeItem(authStorageKey);
-        setSession(null);
+        if (!cancelled) {
+          setSession(null);
+          if (response.status !== 401) setAuthNotice(result.error || "The authentication service is temporarily unavailable.");
+        }
         return;
       }
       saveCsrfToken(result.csrf_token);
       const verifiedSession = { email: result.user.username, username: result.user.username, role: result.user.role || "staff", signedInAt: (/* @__PURE__ */ new Date()).toISOString() };
       window.localStorage.setItem(authStorageKey, JSON.stringify(verifiedSession));
-      setSession(verifiedSession);
-    }).catch(() => setSession(null)).finally(() => setAuthChecked(true));
+      if (!cancelled) {
+        setAuthNotice("");
+        setSession(verifiedSession);
+      }
+    }
+    verifySession().catch(() => {
+      if (!cancelled) {
+        window.localStorage.removeItem(authStorageKey);
+        setSession(null);
+        setAuthNotice("Unable to reach the authentication service. Check your connection and try again.");
+      }
+    }).finally(() => { if (!cancelled) setAuthChecked(true); });
+    return () => { cancelled = true; };
   }, []);
+  useEffect(() => {
+    function expireSession() {
+      window.localStorage.removeItem(authStorageKey);
+      setProfileLoaded(false);
+      setBillingLoaded(false);
+      setSession(null);
+      setAuthNotice("Your session expired. Please sign in again.");
+    }
+    window.addEventListener(sessionExpiredEvent, expireSession);
+    return () => window.removeEventListener(sessionExpiredEvent, expireSession);
+  }, []);
+  useEffect(() => {
+    if (!authChecked || !session) return;
+    let refreshing = false;
+    async function refreshActiveSession() {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const response = await secureFetch(authEndpoint);
+        const result = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          window.dispatchEvent(new CustomEvent(sessionExpiredEvent));
+          return;
+        }
+        if (!response.ok || !result.success || !result.csrf_token) throw new Error(result.error || "Session refresh failed.");
+        saveCsrfToken(result.csrf_token);
+        setDatabaseNotice((notice) => notice.startsWith("Session refresh failed:") ? "" : notice);
+      } catch (error) {
+        setDatabaseNotice(`Session refresh failed: ${error instanceof Error ? error.message : "Check your connection."}`);
+      } finally {
+        refreshing = false;
+      }
+    }
+    const timer = window.setInterval(refreshActiveSession, 15 * 60 * 1000);
+    function refreshWhenVisible() { if (document.visibilityState === "visible") void refreshActiveSession(); }
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [authChecked, session]);
   useEffect(() => {
     window.localStorage.setItem(clientsStorageKey, JSON.stringify(clients));
   }, [clients]);
@@ -503,10 +561,11 @@ function App() {
       window.history.replaceState(null, "", "/");
       setProfileLoaded(false);
       setBillingLoaded(false);
+      setAuthNotice("");
       setSession(nextSession);
       return null;
-    } catch {
-      return "Authentication server is unavailable.";
+    } catch (error) {
+      return error instanceof Error ? error.message : "Authentication server is unavailable.";
     }
   }
   async function handleCredentialsChange(username, password) {
@@ -544,10 +603,10 @@ function App() {
     return /* @__PURE__ */ jsx(Suspense, { fallback: /* @__PURE__ */ jsx("main", { className: "portal-shell", children: "Loading billing portal\u2026" }), children: /* @__PURE__ */ jsx(CustomerPortalPage, {}) });
   }
   if (!session) {
-    return /* @__PURE__ */ jsx(LoginPage, { onLogin: handleLogin });
+    return /* @__PURE__ */ jsx(LoginPage, { onLogin: handleLogin, initialError: authNotice });
   }
   if (!profileLoaded || !billingLoaded) {
-    return null;
+    return /* @__PURE__ */ jsx("div", { className: "route-loading", children: "Loading your workspace…" });
   }
   const isTechnician = session.role === "technician";
   const canAccessFinancial = ["super_admin", "admin", "accountant"].includes(session.role);
