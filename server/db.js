@@ -88,6 +88,17 @@ export async function ensureInvoiceHistorySchema() {
 
 export async function ensureAuthSchema() {
   await ensureCompany();
+  const [legacyAccounts] = await database().execute(
+    "SELECT username FROM auth_accounts WHERE company_id IS NULL"
+  );
+  if (legacyAccounts.length) {
+    await database().execute("UPDATE auth_accounts SET company_id=1 WHERE company_id IS NULL");
+    const usernames = legacyAccounts.map((account) => account.username).filter(Boolean);
+    if (usernames.length) {
+      const placeholders = usernames.map(() => "?").join(",");
+      await database().execute(`DELETE FROM auth_login_attempts WHERE username IN (${placeholders})`, usernames);
+    }
+  }
   const [[superAdmin]] = await database().execute(
     "SELECT COUNT(*)::int AS count FROM auth_accounts WHERE role='super_admin'"
   );
