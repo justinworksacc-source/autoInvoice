@@ -25,7 +25,7 @@ function cookies(req) {
 }
 
 export function createSession(res, user) {
-  const role = ["super_admin", "admin", "accountant", "staff", "technician"].includes(user.role) ? user.role : "staff";
+  const role = ["super_admin", "admin", "accountant", "staff"].includes(user.role) ? user.role : "staff";
   const session = {
     userId: Number(user.id),
     username: user.username,

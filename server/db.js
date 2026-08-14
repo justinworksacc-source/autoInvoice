@@ -88,6 +88,7 @@ export async function ensureInvoiceHistorySchema() {
 
 export async function ensureAuthSchema() {
   await ensureCompany();
+  await database().execute("UPDATE auth_accounts SET role='staff' WHERE role='technician'");
   const [legacyAccounts] = await database().execute(
     "SELECT username FROM auth_accounts WHERE company_id IS NULL"
   );
